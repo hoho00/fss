@@ -24,6 +24,11 @@ def reset_all_games(monkeypatch):
     main_module.turn_timers.clear()
     main_module.turn_timer_generations.clear()
     monkeypatch.setattr(main_module, "save_room_games", lambda: None)
+    monkeypatch.setattr(
+        main_module,
+        "FORCE_RESET_ADMIN_PERSON_IDS",
+        ("room-a-user-1", "additional-admin-id"),
+    )
 
 
 def command(
@@ -56,17 +61,17 @@ def setup_started_room(room_id: str):
     return main_module.get_game_for_room(room_id)
 
 
-def test_force_reset_requires_authorized_email_and_keeps_state(monkeypatch):
+def test_force_reset_requires_authorized_person_id_and_keeps_state(monkeypatch):
     reset_all_games(monkeypatch)
     game = setup_started_room("room-a")
     main_module.latest_card_tokens["room-a"] = "token-a"
 
     response = command(
         "room-a",
-        "room-a-user-1",
+        "unauthorized-user",
         "상현",
         "@FSS 강제리셋",
-        person_email="other@lotte.net",
+        person_email="SH_LEE@LOTTE.NET",
     )
     body = response.json()
 
@@ -114,13 +119,13 @@ def test_force_reset_resets_only_current_room_and_runtime_state(monkeypatch):
     assert game_b.phase == main_module.GamePhase.PRE_FLOP
 
 
-def test_force_reset_allows_additional_admin_email(monkeypatch):
+def test_force_reset_allows_additional_admin_person_id(monkeypatch):
     reset_all_games(monkeypatch)
     game = setup_started_room("room-a")
 
     response = command(
         "room-a",
-        "room-a-user-1",
+        "additional-admin-id",
         "admin",
         "FSS 강제리셋",
         person_email="MS-KIM1@LOTTE.NET",

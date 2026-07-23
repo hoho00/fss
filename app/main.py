@@ -43,7 +43,11 @@ from app.api.game_debug_router import create_game_debug_router
 
 DEBUG_ROOM_ID = "debug-room"
 FORCE_RESET_ADMIN_EMAIL = os.getenv("FSS_ADMIN_EMAIL", "sh_lee@lotte.net")
-ADDITIONAL_FORCE_RESET_ADMIN_EMAILS = ("ms-kim1@lotte.net",)
+FORCE_RESET_ADMIN_PERSON_IDS = tuple(
+    value.strip()
+    for value in os.getenv("FSS_FORCE_RESET_ADMIN_PERSON_IDS", "").split(",")
+    if value.strip()
+)
 RANKING_RESET_ADMIN_EMAIL = FORCE_RESET_ADMIN_EMAIL
 
 game = HoldemGame()
@@ -72,6 +76,7 @@ mahjong_efficiency_service = MahjongEfficiencyService(command_parser=command_par
 mahjong_battle_service = MahjongBattleService(
     webex_client_factory=WebexClient,
     command_parser=command_parser,
+    is_force_reset_admin=lambda person_id: _is_force_reset_admin(person_id),
 )
 
 
@@ -332,7 +337,7 @@ def _admin_service() -> AdminCommandService:
         cancel_timer=_cancel_turn_timer,
         clear_card_token=lambda room_id: latest_card_tokens.pop(room_id, None),
         save_state=save_room_games,
-        additional_force_reset_emails=ADDITIONAL_FORCE_RESET_ADMIN_EMAILS,
+        force_reset_admin_person_ids=FORCE_RESET_ADMIN_PERSON_IDS,
     )
 
 
@@ -344,8 +349,8 @@ def _is_ranking_reset_command(command_text: str) -> bool:
     return _admin_service().is_ranking_reset(command_text)
 
 
-def _is_force_reset_admin(person_email: str | None) -> bool:
-    return _admin_service().is_force_reset_admin(person_email)
+def _is_force_reset_admin(person_id: str | None) -> bool:
+    return _admin_service().is_force_reset_admin(person_id)
 
 
 def _is_ranking_reset_admin(person_email: str | None) -> bool:
@@ -358,9 +363,9 @@ def _force_reset_room(room_id: str) -> dict:
 
 def _handle_force_reset_command(
     room_id: str,
-    person_email: str | None,
+    person_id: str | None,
 ) -> dict:
-    return _admin_service().handle_force_reset(room_id, person_email)
+    return _admin_service().handle_force_reset(room_id, person_id)
 
 
 def _game_selection_from_command(command_text: str) -> GameType | None:

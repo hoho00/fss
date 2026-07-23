@@ -217,7 +217,12 @@ WEBEX_ROOM_ID를 고정하면 특정 방만 동작할 수 있습니다.
 FSS_DEBUG_API_ENABLED=true
 FSS_DEBUG_API_TOKEN=충분히-긴-임의의-토큰
 FSS_ADMIN_EMAIL=sh_lee@lotte.net
+FSS_FORCE_RESET_ADMIN_PERSON_IDS=your-webex-person-id
 ```
+
+`FSS_FORCE_RESET_ADMIN_PERSON_IDS`에는 강제리셋과 패효율 대결 방장 강퇴를
+허용할 Webex `personId`를 쉼표로 구분해 입력합니다. 표시 이름이나 이메일은
+이 권한 판정에 사용되지 않습니다.
 
 디버그 API 호출 시 `X-FSS-Debug-Token` 헤더를 함께 전송해야 합니다.
 게임 상태와 전적은 `data/`에 저장되며 Docker Compose는 이 디렉터리를 호스트에 마운트합니다.

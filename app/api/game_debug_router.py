@@ -54,7 +54,7 @@ def create_game_debug_router(
         room_id = body.room_id or debug_room_id
         admin = get_admin_service()
         if admin.is_force_reset(body.text):
-            return admin.handle_force_reset(room_id, body.person_email)
+            return admin.handle_force_reset(room_id, body.person_id)
         if admin.is_game_selection(body.text):
             return admin.select_game(room_id, body.text)
         if admin.is_ranking_reset(body.text):

@@ -145,7 +145,17 @@ class MahjongEfficiencyService:
         if not person_id or not room_id:
             return {"ok": False, "message": "사용자 또는 Webex 방 정보를 찾을 수 없습니다."}
         if room_type != "direct":
-            client.send_room_message(room_id=room_id, markdown="마작 패효율은 봇과의 개인채팅에서 이용해주세요.")
+            try:
+                client.send_direct_message(
+                    person_id=person_id,
+                    markdown="마작 패효율은 봇과의 개인채팅에서 이용해주세요.",
+                )
+            except Exception:
+                client.send_room_message(
+                    room_id=room_id,
+                    markdown="개인채팅 안내를 보내지 못했습니다. 잠시 후 다시 시도해주세요.",
+                )
+                return {"ok": True, "ignored": True, "reason": "direct message failed"}
             return {"ok": True, "ignored": True, "reason": "direct room required"}
         with self._person_lock(person_id):
             if person_id in self.invalidated_sessions:
