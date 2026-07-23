@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+import logging
 import os
 import secrets
 import threading
@@ -39,6 +40,22 @@ from app.platforms.webex.action_policy import (
     should_silently_ignore,
 )
 from app.api.game_debug_router import create_game_debug_router
+
+
+def _configure_app_logging() -> None:
+    app_logger = logging.getLogger("app")
+    app_logger.setLevel(logging.INFO)
+    if app_logger.handlers:
+        return
+
+    handler = logging.StreamHandler()
+    handler.setFormatter(
+        logging.Formatter("%(levelname)s: %(name)s: %(message)s")
+    )
+    app_logger.addHandler(handler)
+
+
+_configure_app_logging()
 
 
 DEBUG_ROOM_ID = "debug-room"

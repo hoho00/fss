@@ -1,6 +1,9 @@
+import logging
 from collections.abc import Callable
 
 from app.games.mahjong_efficiency.battle_card_builder import build_game_status_selector_card
+
+logger = logging.getLogger(__name__)
 
 
 class WebexEventHandler:
@@ -87,6 +90,13 @@ class WebexEventHandler:
         if not text:
             return {"ok": True, "ignored": True, "reason": "텍스트가 없는 메시지입니다."}
 
+        logger.info(
+            "WEBEX command room=%s user=%s text=%r",
+            room_id,
+            display_name,
+            text,
+        )
+
         special_service = None
         battle_service = getattr(self, "mahjong_battle_service", None)
         if battle_service and battle_service.normalized_command(text) == "상태":
@@ -146,6 +156,16 @@ class WebexEventHandler:
             return {"ok": False, "message": "attachment action에 personId가 없습니다."}
 
         inputs = action.get("inputs") or {}
+        action_name = inputs.get("action")
+        button_command = inputs.get("command")
+        if action_name or button_command:
+            logger.info(
+                "WEBEX button room=%s person=%s action=%s command=%r",
+                room_id,
+                person_id,
+                action_name,
+                button_command,
+            )
         battle_service = getattr(self, "mahjong_battle_service", None)
         if inputs.get("action") == "game_status_selection":
             command = inputs.get("command")
