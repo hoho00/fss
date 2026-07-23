@@ -1,0 +1,16 @@
+.venv/
+venv
+.env
+__pycache__/
+.pytest_cache/
+.pytest-tmp*/
+.tmp/
+*.pyc
+*.log
+*.zip
+$null
+fss_codex_backups/
+data/games.json
+data/stats.json
+data/mahjong_efficiency.json
+data/mahjong_battles.json

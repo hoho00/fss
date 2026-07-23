@@ -1,0 +1,1 @@
+"""Fool Liar application services."""

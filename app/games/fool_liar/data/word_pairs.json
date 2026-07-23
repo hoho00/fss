@@ -1,0 +1,148 @@
+{
+  "음식": [
+    {
+      "name": "국물요리",
+      "words": [
+        {"text": "김치찌개", "aliases": ["김치 찌개"]}, {"text": "된장찌개", "aliases": ["된장 찌개"]},
+        {"text": "순두부찌개", "aliases": ["순두부 찌개"]}, {"text": "부대찌개", "aliases": ["부대 찌개"]},
+        {"text": "미역국", "aliases": []}, {"text": "육개장", "aliases": []}, {"text": "설렁탕", "aliases": []},
+        {"text": "갈비탕", "aliases": []}, {"text": "삼계탕", "aliases": []}, {"text": "감자탕", "aliases": []}
+      ]
+    },
+    {
+      "name": "면요리",
+      "words": [
+        {"text": "짜장면", "aliases": ["자장면"]}, {"text": "짬뽕", "aliases": []}, {"text": "냉면", "aliases": []},
+        {"text": "막국수", "aliases": []}, {"text": "칼국수", "aliases": []}, {"text": "잔치국수", "aliases": []},
+        {"text": "우동", "aliases": []}, {"text": "라면", "aliases": []}, {"text": "쌀국수", "aliases": []},
+        {"text": "파스타", "aliases": ["스파게티"]}
+      ]
+    },
+    {
+      "name": "간편식",
+      "words": [
+        {"text": "떡볶이", "aliases": []}, {"text": "라볶이", "aliases": []}, {"text": "김밥", "aliases": []},
+        {"text": "만두", "aliases": []}, {"text": "찐빵", "aliases": []}, {"text": "햄버거", "aliases": ["버거"]},
+        {"text": "샌드위치", "aliases": []}, {"text": "피자", "aliases": []}, {"text": "치킨", "aliases": ["통닭"]},
+        {"text": "핫도그", "aliases": []}
+      ]
+    }
+  ],
+  "동물": [
+    {
+      "name": "육상동물",
+      "words": [
+        {"text": "사자", "aliases": []}, {"text": "호랑이", "aliases": []}, {"text": "표범", "aliases": []},
+        {"text": "늑대", "aliases": []}, {"text": "여우", "aliases": []}, {"text": "곰", "aliases": []},
+        {"text": "코끼리", "aliases": []}, {"text": "코뿔소", "aliases": []}, {"text": "기린", "aliases": []},
+        {"text": "얼룩말", "aliases": []}
+      ]
+    },
+    {
+      "name": "바다동물",
+      "words": [
+        {"text": "고래", "aliases": []}, {"text": "돌고래", "aliases": []}, {"text": "상어", "aliases": []},
+        {"text": "문어", "aliases": []}, {"text": "오징어", "aliases": []}, {"text": "해파리", "aliases": []},
+        {"text": "물개", "aliases": []}, {"text": "바다사자", "aliases": []}, {"text": "거북이", "aliases": ["바다거북"]},
+        {"text": "가오리", "aliases": []}
+      ]
+    },
+    {
+      "name": "새",
+      "words": [
+        {"text": "독수리", "aliases": []}, {"text": "매", "aliases": []}, {"text": "부엉이", "aliases": []},
+        {"text": "올빼미", "aliases": []}, {"text": "참새", "aliases": []}, {"text": "비둘기", "aliases": []},
+        {"text": "까치", "aliases": []}, {"text": "까마귀", "aliases": []}, {"text": "펭귄", "aliases": []},
+        {"text": "타조", "aliases": []}
+      ]
+    }
+  ],
+  "장소": [
+    {
+      "name": "공공시설",
+      "words": [
+        {"text": "학교", "aliases": []}, {"text": "도서관", "aliases": []}, {"text": "병원", "aliases": []},
+        {"text": "약국", "aliases": []}, {"text": "경찰서", "aliases": []}, {"text": "소방서", "aliases": []},
+        {"text": "우체국", "aliases": []}, {"text": "은행", "aliases": []}, {"text": "주민센터", "aliases": []},
+        {"text": "법원", "aliases": []}
+      ]
+    },
+    {
+      "name": "여행장소",
+      "words": [
+        {"text": "공항", "aliases": []}, {"text": "기차역", "aliases": ["역"]}, {"text": "버스터미널", "aliases": ["터미널"]},
+        {"text": "호텔", "aliases": []}, {"text": "리조트", "aliases": []}, {"text": "캠핑장", "aliases": []},
+        {"text": "해수욕장", "aliases": []}, {"text": "놀이공원", "aliases": []}, {"text": "동물원", "aliases": []},
+        {"text": "박물관", "aliases": []}
+      ]
+    },
+    {
+      "name": "상업시설",
+      "words": [
+        {"text": "편의점", "aliases": []}, {"text": "마트", "aliases": ["대형마트"]}, {"text": "백화점", "aliases": []},
+        {"text": "시장", "aliases": []}, {"text": "카페", "aliases": ["커피숍"]}, {"text": "식당", "aliases": ["음식점"]},
+        {"text": "영화관", "aliases": ["극장"]}, {"text": "서점", "aliases": []}, {"text": "미용실", "aliases": []},
+        {"text": "세탁소", "aliases": []}
+      ]
+    }
+  ],
+  "물건": [
+    {
+      "name": "전자제품",
+      "words": [
+        {"text": "노트북", "aliases": ["랩톱"]}, {"text": "태블릿", "aliases": ["태블릿PC"]},
+        {"text": "스마트폰", "aliases": ["휴대폰", "핸드폰"]}, {"text": "텔레비전", "aliases": ["TV", "티비"]},
+        {"text": "냉장고", "aliases": []}, {"text": "세탁기", "aliases": []}, {"text": "에어컨", "aliases": []},
+        {"text": "선풍기", "aliases": []}, {"text": "청소기", "aliases": []}, {"text": "전자레인지", "aliases": []}
+      ]
+    },
+    {
+      "name": "문구류",
+      "words": [
+        {"text": "연필", "aliases": []}, {"text": "볼펜", "aliases": []}, {"text": "지우개", "aliases": []},
+        {"text": "자", "aliases": []}, {"text": "가위", "aliases": []}, {"text": "풀", "aliases": []},
+        {"text": "공책", "aliases": ["노트"]}, {"text": "스케치북", "aliases": []}, {"text": "색연필", "aliases": []},
+        {"text": "형광펜", "aliases": []}
+      ]
+    },
+    {
+      "name": "생활용품",
+      "words": [
+        {"text": "우산", "aliases": []}, {"text": "우비", "aliases": []}, {"text": "칫솔", "aliases": []},
+        {"text": "면도기", "aliases": []}, {"text": "수건", "aliases": []}, {"text": "베개", "aliases": []},
+        {"text": "이불", "aliases": []}, {"text": "의자", "aliases": []}, {"text": "소파", "aliases": []},
+        {"text": "탁자", "aliases": ["테이블"]}
+      ]
+    }
+  ],
+  "활동": [
+    {
+      "name": "구기종목",
+      "words": [
+        {"text": "축구", "aliases": []}, {"text": "농구", "aliases": []}, {"text": "야구", "aliases": []},
+        {"text": "배구", "aliases": []}, {"text": "테니스", "aliases": []}, {"text": "탁구", "aliases": []},
+        {"text": "배드민턴", "aliases": []}, {"text": "골프", "aliases": []}, {"text": "볼링", "aliases": []},
+        {"text": "핸드볼", "aliases": []}
+      ]
+    },
+    {
+      "name": "야외활동",
+      "words": [
+        {"text": "등산", "aliases": []}, {"text": "캠핑", "aliases": []}, {"text": "낚시", "aliases": []},
+        {"text": "달리기", "aliases": ["러닝"]}, {"text": "자전거", "aliases": ["사이클"]}, {"text": "수영", "aliases": []},
+        {"text": "서핑", "aliases": []}, {"text": "스키", "aliases": []}, {"text": "스노보드", "aliases": []},
+        {"text": "패러글라이딩", "aliases": []}
+      ]
+    },
+    {
+      "name": "취미활동",
+      "words": [
+        {"text": "독서", "aliases": ["책읽기", "책 읽기"]}, {"text": "글쓰기", "aliases": ["글 쓰기"]},
+        {"text": "그림그리기", "aliases": ["그림 그리기"]}, {"text": "사진촬영", "aliases": ["사진 촬영"]},
+        {"text": "요리", "aliases": []}, {"text": "베이킹", "aliases": ["제빵"]}, {"text": "뜨개질", "aliases": []},
+        {"text": "악기연주", "aliases": ["악기 연주"]}, {"text": "노래", "aliases": ["노래하기"]},
+        {"text": "춤", "aliases": ["춤추기"]}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+[project]
+name = "fss"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Your Name",email = "you@example.com"}
+]
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi (>=0.138.2,<0.139.0)",
+    "uvicorn (>=0.49.0,<0.50.0)",
+    "httpx (>=0.28.1,<0.29.0)",
+    "python-dotenv (>=1.2.2,<2.0.0)",
+    "cryptography (>=45,<47)"
+]
+
+[dependency-groups]
+dev = [
+    "httpx2 (>=2.0.0,<3.0.0)",
+    "pytest (>=9.1.1,<10.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
