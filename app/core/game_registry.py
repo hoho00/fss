@@ -152,6 +152,7 @@ def game_type_from_selection(value: str) -> GameType | None:
         "holdem": GameType.HOLDEM,
         "텍사스홀덤": GameType.HOLDEM,
         "주사위": GameType.DICE,
+        "주사위게임": GameType.DICE,
         "dice": GameType.DICE,
         "바보라이어게임": GameType.FOOL_LIAR,
         "바보 라이어게임": GameType.FOOL_LIAR,

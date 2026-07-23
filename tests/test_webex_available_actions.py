@@ -2,6 +2,7 @@ import app.main as main_module
 from app.domain.game import HoldemGame
 from app.games.dice.domain.game import DiceGame
 from app.games.fool_liar.domain.game import FoolLiarGame
+from app.games.mahjong_efficiency.battle_card_builder import build_game_status_selector_card
 
 
 def action_titles(actions):
@@ -59,6 +60,32 @@ def test_each_waiting_game_shows_other_game_shortcuts():
     assert "게임선택 바보라이어게임" in dice_commands
     assert "게임선택 홀덤" in fool_liar_commands
     assert "게임선택 주사위" in fool_liar_commands
+
+
+def test_main_status_selector_contains_every_game_and_routes_distinctly(monkeypatch):
+    card = build_game_status_selector_card()
+    by_title = {item["title"]: item["data"]["command"] for item in card["actions"]}
+    assert set(by_title) == {
+        "홀덤", "개인 패효율", "패효율 대결", "주사위게임", "바보라이어게임", "도움말",
+    }
+    assert by_title["홀덤"] == "게임선택 홀덤"
+    assert by_title["주사위게임"] == "게임선택 주사위게임"
+    assert by_title["바보라이어게임"] == "게임선택 바보라이어게임"
+    assert len(set(by_title.values())) == len(by_title)
+
+    monkeypatch.setattr(main_module, "save_room_games", lambda: None)
+    main_module.room_games.clear(); main_module.room_game_types.clear()
+    main_module._handle_game_selection_command("selector-room", by_title["주사위게임"])
+    assert isinstance(main_module.get_game_for_room("selector-room"), DiceGame)
+    main_module._handle_game_selection_command("selector-room", by_title["바보라이어게임"])
+    assert isinstance(main_module.get_game_for_room("selector-room"), FoolLiarGame)
+
+
+def test_general_status_card_does_not_create_or_select_holdem():
+    before_games = dict(main_module.room_games)
+    card = build_game_status_selector_card()
+    assert card["body"][0]["text"] == "FSS 게임 선택"
+    assert main_module.room_games == before_games
 
 
 def test_preflop_first_turn_shows_call_button():

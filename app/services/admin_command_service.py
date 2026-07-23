@@ -23,13 +23,14 @@ class AdminCommandService:
         cancel_timer: Callable[[str], None],
         clear_card_token: Callable[[str], None],
         save_state: Callable[[], None],
-        additional_force_reset_emails: tuple[str, ...] = (),
+        force_reset_admin_person_ids: tuple[str, ...] = (),
     ):
         self.command_parser = command_parser
         self.admin_email = admin_email.strip().lower()
-        self.force_reset_admin_emails = {
-            self.admin_email,
-            *(email.strip().lower() for email in additional_force_reset_emails),
+        self.force_reset_admin_person_ids = {
+            person_id.strip()
+            for person_id in force_reset_admin_person_ids
+            if person_id.strip()
         }
         self.stats_store = stats_store
         self.get_game = get_game
@@ -60,10 +61,9 @@ class AdminCommandService:
     def is_admin(self, email: str | None) -> bool:
         return bool(email and email.strip().lower() == self.admin_email)
 
-    def is_force_reset_admin(self, email: str | None) -> bool:
-        return bool(
-            email and email.strip().lower() in self.force_reset_admin_emails
-        )
+    def is_force_reset_admin(self, person_id: str | None) -> bool:
+        """Authorize privileged mutations using the immutable Webex personId."""
+        return bool(person_id and person_id.strip() in self.force_reset_admin_person_ids)
 
     def force_reset(self, room_id: str) -> dict:
         self.cancel_timer(room_id)
@@ -77,8 +77,8 @@ class AdminCommandService:
             "status": game.status(),
         }
 
-    def handle_force_reset(self, room_id: str, email: str | None) -> dict:
-        if not self.is_force_reset_admin(email):
+    def handle_force_reset(self, room_id: str, person_id: str | None) -> dict:
+        if not self.is_force_reset_admin(person_id):
             return {
                 "ok": False,
                 "message": "권한이 없습니다. 관리자만 강제리셋을 실행할 수 있습니다.",

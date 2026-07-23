@@ -34,22 +34,60 @@ def _tile_column(item, battle):
     }
 
 
-def build_battle_menu_card(battle) -> dict:
+def _lobby_actions(battle, viewer_person_id=None, can_force_reset=False):
+    player = battle.player(viewer_person_id) if battle and viewer_person_id else None
+    is_host = bool(battle and battle.host_person_id == viewer_person_id)
+    actions = []
+    if viewer_person_id is None:
+        actions.extend([
+            ("참가", "패효율 대결 참가"),
+            ("참가 취소", "패효율 대결 참가 취소"),
+            ("시작", "패효율 대결 시작"),
+        ])
+    elif not player:
+        actions.append(("참가", "패효율 대결 참가"))
+    elif not is_host:
+        actions.append(("참가 취소", "패효율 대결 참가 취소"))
+    if is_host:
+        actions.append(("시작", "패효율 대결 시작"))
+    actions.extend([
+        ("상태", "패효율 대결 상태"),
+        ("도움말", "패효율 대결 도움말"),
+        ("메인 메뉴", "패효율 대결 메인 메뉴"),
+    ])
+    if can_force_reset:
+        actions.insert(-2, ("방장 강퇴", "패효율 대결 방장 강퇴"))
+    return actions
+
+
+def _submit_actions(actions, battle):
+    context = {
+        "room_id": battle.room_id if battle else "",
+        "battle_id": battle.battle_id if battle else "",
+        "state_version": battle.state_version if battle else 0,
+    }
+    return [{
+        "type": "Action.Submit", "title": title,
+        "data": {
+            "action": "mahjong_battle_command", "command": command, **context,
+        },
+    } for title, command in actions]
+
+
+def build_battle_menu_card(
+    battle, viewer_person_id=None, can_force_reset=False,
+) -> dict:
     if battle is None or battle.status in {"finished", "ended"}:
         actions = [("다시 하기", "패효율 대결 다시 하기"), ("메인 메뉴", "패효율 대결 메인 메뉴")]
     elif battle.status == "lobby":
-        actions = [
-            ("참가", "패효율 대결 참가"), ("참가 취소", "패효율 대결 참가 취소"),
-            ("시작", "패효율 대결 시작"),
-            ("상태", "패효율 대결 상태"), ("대결 종료", "패효율 대결 종료"),
-            ("도움말", "패효율 대결 도움말"), ("메인 메뉴", "패효율 대결 메인 메뉴"),
-        ]
+        actions = _lobby_actions(battle, viewer_person_id, can_force_reset)
     else:
         actions = [
             ("상태", "패효율 대결 상태"), ("대결 종료", "패효율 대결 종료"),
             ("도움말", "패효율 대결 도움말"), ("메인 메뉴", "패효율 대결 메인 메뉴"),
         ]
-    host = battle.player(battle.host_person_id).display_name if battle else "없음"
+    host_player = battle.player(battle.host_person_id) if battle else None
+    host = host_player.display_name if host_player else "없음"
     return {
         "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
         "type": "AdaptiveCard", "version": "1.3",
@@ -58,10 +96,7 @@ def build_battle_menu_card(battle) -> dict:
             _text("하나의 공통 손패와 패산으로 텐파이까지 이어갑니다."),
             _text(f"방장: {host}"), _text(_participants(battle)),
         ],
-        "actions": [{
-            "type": "Action.Submit", "title": title,
-            "data": {"action": "mahjong_battle_command", "command": command},
-        } for title, command in actions],
+        "actions": _submit_actions(actions, battle),
     }
 
 
@@ -118,11 +153,14 @@ def build_battle_result_card(battle, result: dict) -> dict:
     return {"$schema": "http://adaptivecards.io/schemas/adaptive-card.json", "type": "AdaptiveCard", "version": "1.3", "body": body}
 
 
-def build_battle_status_card(battle, now) -> dict:
+def build_battle_status_card(
+    battle, now, viewer_person_id=None, can_force_reset=False,
+) -> dict:
     if not battle or battle.status in {"finished", "ended"}:
         body = [_text("패효율 대결 상태", weight="Bolder", size="Medium"), _text("진행 중인 패효율 대결이 없습니다."), _text(_participants(battle))]
     elif battle.status == "lobby":
-        host = battle.player(battle.host_person_id).display_name
+        host_player = battle.player(battle.host_person_id)
+        host = host_player.display_name if host_player else "없음"
         body = [_text("패효율 대결 로비", weight="Bolder", size="Medium"), _text(f"방장: {host}"), _text(_participants(battle))]
     else:
         value = battle.round_deadline_at if battle.phase == "ANSWERING" else battle.result_deadline_at
@@ -130,7 +168,14 @@ def build_battle_status_card(battle, now) -> dict:
         remaining = max(0, int((deadline - now).total_seconds()))
         phase = "응답 중" if battle.phase == "ANSWERING" else "결과 표시 중"
         body = [_text(f"패효율 대결 · {battle.turn_no}순", weight="Bolder", size="Medium"), _text(f"{phase} · 남은 시간: 약 {remaining}초"), _text(_participants(battle, scores=True))]
-    return {"$schema": "http://adaptivecards.io/schemas/adaptive-card.json", "type": "AdaptiveCard", "version": "1.3", "body": body}
+    actions = []
+    if not battle:
+        actions = _lobby_actions(None, viewer_person_id, can_force_reset=False)
+    elif battle.status == "lobby":
+        actions = _lobby_actions(battle, viewer_person_id, can_force_reset)
+    elif battle.status in {"finished", "ended"}:
+        actions = [("상태", "패효율 대결 상태"), ("도움말", "패효율 대결 도움말"), ("메인 메뉴", "패효율 대결 메인 메뉴")]
+    return {"$schema": "http://adaptivecards.io/schemas/adaptive-card.json", "type": "AdaptiveCard", "version": "1.3", "body": body, "actions": _submit_actions(actions, battle)}
 
 
 def build_battle_final_card(battle, result: dict) -> dict:
@@ -152,17 +197,20 @@ def build_battle_final_card(battle, result: dict) -> dict:
             _text(_participants(battle, scores=True)),
             _text("최종 순위\n" + ranking),
         ],
-        "actions": [
-            {"type": "Action.Submit", "title": "다시 하기", "data": {"action": "mahjong_battle_command", "command": "패효율 대결 다시 하기"}},
-            {"type": "Action.Submit", "title": "메인 메뉴", "data": {"action": "mahjong_battle_command", "command": "패효율 대결 메인 메뉴"}},
-        ],
+        "actions": _submit_actions([
+            ("다시 하기", "패효율 대결 다시 하기"),
+            ("메인 메뉴", "패효율 대결 메인 메뉴"),
+        ], battle),
     }
 
 
 def build_game_status_selector_card() -> dict:
     actions = [
-        ("홀덤", "상태 홀덤"), ("개인 패효율", "패효율 상태"),
-        ("패효율 대결", "패효율 대결 상태"), ("메인 도움말", "도움말"),
+        ("홀덤", "게임선택 홀덤"), ("개인 패효율", "패효율 상태"),
+        ("패효율 대결", "패효율 대결 상태"),
+        ("주사위게임", "게임선택 주사위게임"),
+        ("바보라이어게임", "게임선택 바보라이어게임"),
+        ("도움말", "도움말"),
     ]
     return {
         "$schema": "http://adaptivecards.io/schemas/adaptive-card.json", "type": "AdaptiveCard", "version": "1.3",

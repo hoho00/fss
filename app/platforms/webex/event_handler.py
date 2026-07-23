@@ -116,7 +116,7 @@ class WebexEventHandler:
             return special_service.handle_command(client, message)
 
         if self.is_force_reset(text):
-            result = self.handle_force_reset(room_id, person_email)
+            result = self.handle_force_reset(room_id, person_id)
             self.send_result(client, room_id, person_id, result)
             return {"ok": True}
         if self.is_game_selection(text):
@@ -169,12 +169,8 @@ class WebexEventHandler:
         battle_service = getattr(self, "mahjong_battle_service", None)
         if inputs.get("action") == "game_status_selection":
             command = inputs.get("command")
-            if command == "상태 홀덤":
-                person = client.get_person(person_id)
-                result = self.command_coordinator.execute(
-                    gateway=client, room_id=room_id, person_id=person_id,
-                    display_name=client.display_name_from_person(person, person_id), text="상태",
-                )
+            if command and getattr(self, "is_game_selection", lambda _text: False)(command):
+                result = self.handle_game_selection(room_id, command)
                 self.send_result(client, room_id, person_id, result)
                 return {"ok": True, "status_selection": True}
             if command == "패효율 상태" and self.mahjong_efficiency_service:
@@ -209,6 +205,7 @@ class WebexEventHandler:
                 "roomId": room_id, "personId": person_id, "text": command,
                 "roomType": room.get("type") or room.get("roomType"),
                 "personDisplayName": client.display_name_from_person(person, person_id),
+                "actionContext": inputs,
             }
             return battle_service.handle_command(client, message)
         if command and self.mahjong_efficiency_service and self.mahjong_efficiency_service.is_command(command):

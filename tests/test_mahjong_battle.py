@@ -55,11 +55,12 @@ def message(command, person="p1", name="방장", room_type="group", room="room")
     return {"text": command, "personId": person, "personDisplayName": name, "roomType": room_type, "roomId": room}
 
 
-def service(store=None, clock=None, client=None):
+def service(store=None, clock=None, client=None, admins=()):
     FakeTimer.instances.clear(); client = client or Client()
     return MahjongBattleService(
         store=store or MemoryStore(), rng=random.Random(4), clock=clock or Clock(),
         timer_factory=FakeTimer, webex_client_factory=lambda: client,
+        is_force_reset_admin=lambda person_id: person_id in admins,
     ), client
 
 
@@ -100,6 +101,14 @@ def action(battle, person, tile):
 
 
 def card_text(card): return "\n".join(str(item.get("text", "")) for item in card["body"])
+
+
+def command_context(battle):
+    return {
+        "room_id": battle.room_id if battle else "room",
+        "battle_id": battle.battle_id if battle else "",
+        "state_version": battle.state_version if battle else 0,
+    }
 
 
 def expire_answer(game):
@@ -335,6 +344,88 @@ def test_direct_entry_creates_lobby_without_create_button_and_replay_resets_game
     assert battle.status == "lobby" and battle.phase == "WAITING" and battle.battle_id != old_id
     assert battle.current_round is None and not battle.completed_rounds
     assert all(p.score == p.responses == p.best_discards == 0 for p in battle.players)
+
+
+def test_status_card_has_contextual_lobby_actions_and_validates_button_context():
+    game, client = service()
+    game.handle_command(client, message("패효율 대결 상태", "p2", "참가자"))
+    empty_card = client.cards[-1][2]
+    assert {item["title"] for item in empty_card["actions"]} == {"참가", "상태", "도움말", "메인 메뉴"}
+
+    game.handle_command(client, message("패효율 대결 참가", "p1", "방장") | {
+        "actionContext": command_context(None),
+    })
+    battle = game.battles["room"]
+    host_card = build_battle_status_card(battle, game.clock(), "p1")
+    guest_card = build_battle_status_card(battle, game.clock(), "p2")
+    assert "시작" in {item["title"] for item in host_card["actions"]}
+    assert "참가" not in {item["title"] for item in host_card["actions"]}
+    assert "참가" in {item["title"] for item in guest_card["actions"]}
+
+    stale = command_context(battle)
+    game.handle_command(client, message("패효율 대결 참가", "p2", "참가자") | {"actionContext": stale})
+    assert battle.player("p2") is not None
+    duplicate = game.handle_command(client, message("패효율 대결 참가", "p3", "중복") | {"actionContext": stale})
+    assert duplicate["ignored"] and battle.player("p3") is None
+
+
+def test_text_and_button_start_share_permissions_and_service_logic():
+    game, client = service()
+    game.handle_command(client, message("패효율 대결", "p1", "방장"))
+    game.handle_command(client, message("패효율 대결 참가", "p2", "참가자"))
+    battle = game.battles["room"]
+    before = command_context(battle)
+    game.handle_command(client, message("패효율 대결 시작", "p2", "참가자") | {"actionContext": before})
+    assert battle.status == "lobby" and "방장만" in client.messages[-1][1]
+    game._generate_round = fixed_round
+    game.handle_command(client, message("패효율 대결 시작", "p1", "방장") | {"actionContext": before})
+    assert battle.status == "active"
+
+
+def test_authorized_host_eviction_promotes_first_joined_and_persists():
+    store = MemoryStore(); game, client = service(store=store, admins={"admin"})
+    game.handle_command(client, message("패효율 대결", "host", "기존 방장"))
+    game.handle_command(client, message("패효율 대결 참가", "next", "다음 참가자"))
+    game.handle_command(client, message("패효율 대결 참가", "later", "후순위"))
+    battle = game.battles["room"]
+    context = command_context(battle)
+    game.handle_command(client, message("패효율 대결 방장 강퇴", "admin", "관리자") | {"actionContext": context})
+    assert battle.player("host") is None and battle.host_person_id == "next"
+    restored, _ = service(store=store, admins={"admin"})
+    assert restored.battles["room"].host_person_id == "next"
+    assert "방장 강퇴" in {item["title"] for item in build_battle_status_card(battle, game.clock(), "admin", True)["actions"]}
+    assert "방장 강퇴" not in {item["title"] for item in build_battle_status_card(battle, game.clock(), "later", False)["actions"]}
+
+
+def test_host_eviction_rejects_unauthorized_active_other_room_and_duplicate():
+    game, client = service(admins={"admin"})
+    game.handle_command(client, message("패효율 대결", "host", "방장", room="room"))
+    battle = game.battles["room"]
+    context = command_context(battle)
+    game.handle_command(client, message("패효율 대결 방장 강퇴", "user", "일반", room="room") | {"actionContext": context})
+    assert battle.host_person_id == "host"
+    game.handle_command(client, message("패효율 대결", "other-host", "다른 방장", room="other"))
+    game.handle_command(client, message("패효율 대결 방장 강퇴", "admin", "관리자", room="room") | {"actionContext": context})
+    assert battle.host_person_id == "" and game.battles["other"].host_person_id == "other-host"
+    duplicate = game.handle_command(client, message("패효율 대결 방장 강퇴", "admin", "관리자", room="room") | {"actionContext": context})
+    assert duplicate["ignored"] and battle.players == []
+
+    active, active_client = service(admins={"admin"})
+    active._generate_round = fixed_round
+    active.handle_command(active_client, message("패효율 대결", "host", "방장"))
+    active.handle_command(active_client, message("패효율 대결 참가", "p2", "참가자"))
+    active.handle_command(active_client, message("패효율 대결 시작", "host", "방장"))
+    running = active.battles["room"]
+    active.handle_command(active_client, message("패효율 대결 방장 강퇴", "admin", "관리자"))
+    assert running.status == "active" and running.host_person_id == "host"
+
+
+def test_evicting_only_host_leaves_empty_host_and_admin_host_can_evict_self():
+    game, client = service(admins={"host"})
+    game.handle_command(client, message("패효율 대결", "host", "방장"))
+    battle = game.battles["room"]
+    game.handle_command(client, message("패효율 대결 방장 강퇴", "host", "방장"))
+    assert battle.players == [] and battle.host_person_id == ""
 
 
 def test_help_describes_single_continuous_battle_and_no_ten_round_wording():

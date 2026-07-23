@@ -1,6 +1,8 @@
 .venv/
 venv
 .env
+.env.*
+!.env.example
 __pycache__/
 .pytest_cache/
 .pytest-tmp*/
@@ -10,7 +12,4 @@ __pycache__/
 *.zip
 $null
 fss_codex_backups/
-data/games.json
-data/stats.json
-data/mahjong_efficiency.json
-data/mahjong_battles.json
+data/

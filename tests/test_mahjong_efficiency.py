@@ -39,12 +39,16 @@ class FakeClient:
     def __init__(self):
         self.messages = []
         self.cards = []
+        self.direct = []
 
     def send_room_message(self, room_id, markdown):
         self.messages.append((room_id, markdown))
 
     def send_room_card(self, room_id, markdown, card):
         self.cards.append((room_id, markdown, card))
+
+    def send_direct_message(self, person_id, markdown):
+        self.direct.append((person_id, markdown))
 
 
 def direct_message(text="패효율 시작", person_id="p1", room_id="direct-1"):
@@ -145,7 +149,8 @@ def test_direct_start_creates_legal_136_tile_session_and_group_is_rejected():
     group["roomType"] = "group"
     service.handle_command(client, group)
     assert "p2" not in service.sessions
-    assert client.messages[-1][1] == "마작 패효율은 봇과의 개인채팅에서 이용해주세요."
+    assert client.direct[-1] == ("p2", "마작 패효율은 봇과의 개인채팅에서 이용해주세요.")
+    assert not any("개인채팅에서 이용" in text for _, text in client.messages)
 
 
 def test_discard_draw_is_atomic_and_stale_duplicate_does_not_draw_twice():
@@ -311,6 +316,44 @@ def test_webex_handler_routes_direct_command_and_uses_actual_action_person():
     assert started["mahjong_efficiency"] is True
     assert clicked["ignored"] is True
     assert service.sessions["p1"].to_dict() == before
+
+
+def test_group_status_button_sends_dm_only_to_actual_action_person():
+    service = MahjongEfficiencyService(store=MemoryStore(), rng=random.Random(12))
+
+    class Gateway(FakeClient):
+        def get_attachment_action(self, action_id):
+            return {
+                "roomId": "group-1", "personId": "clicker-id",
+                "inputs": {"action": "game_status_selection", "command": "패효율 상태"},
+            }
+        def get_room(self, room_id): return {"id": room_id, "type": "group"}
+
+    gateway = Gateway(); handler = WebexEventHandler.__new__(WebexEventHandler)
+    handler.webex_client_factory = lambda: gateway
+    handler.mahjong_efficiency_service = service
+    handler.mahjong_battle_service = None
+    handler.is_game_selection = lambda text: False
+    result = handler.handle_attachment_locked({"data": {"id": "action-1", "roomId": "group-1"}})
+    assert result["ok"] is True
+    assert gateway.direct == [("clicker-id", "마작 패효율은 봇과의 개인채팅에서 이용해주세요.")]
+    assert gateway.messages == []
+
+
+def test_group_efficiency_dm_failure_is_acknowledged_with_safe_room_notice():
+    service = MahjongEfficiencyService(store=MemoryStore(), rng=random.Random(13))
+
+    class FailedDmClient(FakeClient):
+        def send_direct_message(self, person_id, markdown):
+            raise RuntimeError("secret token must not leak")
+
+    client = FailedDmClient()
+    result = service.handle_command(client, {
+        "text": "패효율 상태", "personId": "p1", "roomId": "group", "roomType": "group",
+    })
+    assert result["ok"] is True
+    assert client.messages == [("group", "개인채팅 안내를 보내지 못했습니다. 잠시 후 다시 시도해주세요.")]
+    assert "secret" not in client.messages[0][1]
 
 
 def test_initial_hand_separates_thirteen_base_tiles_and_one_drawn_tile():

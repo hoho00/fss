@@ -22,6 +22,7 @@ BATTLE_COMMANDS = {
     "패효율 대결", "패효율 대결 생성", "패효율 대결 참가", "패효율 대결 참가 취소",
     "패효율 대결 시작",
     "패효율 대결 상태", "패효율 대결 종료", "패효율 대결 도움말",
+    "패효율 대결 방장 강퇴",
     "패효율 대결 다시 하기", "패효율 대결 메인 메뉴",
 }
 BATTLE_HELP = (
@@ -32,6 +33,7 @@ BATTLE_HELP = (
     "비효율 타패는 손실 장수만큼 감점, "
     "샨텐 악화는 최고 효율 손실과 추가 10점 감점, 미응답은 0점입니다.\n"
     "명령: 패효율 대결 / 참가 / 참가 취소 / 시작 / 상태 / 종료 / 도움말\n"
+    "강제리셋 권한자 복구 명령: 패효율 대결 방장 강퇴\n"
     "Webex 버튼으로도 동일하게 조작할 수 있습니다."
 )
 
@@ -163,7 +165,7 @@ class LegacyBattleFormatError(ValueError):
 class MahjongBattleService:
     ROUND_SECONDS = 10
 
-    def __init__(self, store=None, rng=None, clock=None, timer_factory=None, webex_client_factory=None, command_parser=None):
+    def __init__(self, store=None, rng=None, clock=None, timer_factory=None, webex_client_factory=None, command_parser=None, is_force_reset_admin=None):
         self.store = store or MahjongEfficiencyStore(
             os.getenv("FSS_MAHJONG_BATTLE_STORE_PATH", "data/mahjong_battles.json")
         )
@@ -172,6 +174,7 @@ class MahjongBattleService:
         self.timer_factory = timer_factory or threading.Timer
         self.webex_client_factory = webex_client_factory
         self.command_parser = command_parser or CommandParser()
+        self.is_force_reset_admin = is_force_reset_admin or (lambda _person_id: False)
         data = self.store.load()
         self.battles = {}
         self.invalidated_rooms = set()
@@ -192,6 +195,9 @@ class MahjongBattleService:
         command = self.normalized_command(message.get("text", ""))
         room_id, person_id = message.get("roomId"), message.get("personId")
         room_type = message.get("roomType")
+        action_context = message.get("actionContext")
+        if not room_id or not person_id:
+            return {"ok": False, "message": "사용자 또는 Webex 방 정보를 찾을 수 없습니다."}
         name = normalize_display_name(
             message.get("personDisplayName") or message.get("personEmail") or person_id
         )
@@ -210,6 +216,13 @@ class MahjongBattleService:
                     "패효율 대결 진행 방식이 변경되어 진행 중이던 대결을 다시 생성해주세요.",
                 )
             battle = self.battles.get(room_id)
+            mutating_commands = {
+                "패효율 대결 참가", "패효율 대결 참가 취소", "패효율 대결 시작",
+                "패효율 대결 종료", "패효율 대결 다시 하기", "패효율 대결 방장 강퇴",
+            }
+            if action_context and command in mutating_commands:
+                if not self._valid_lobby_action_context(room_id, battle, action_context):
+                    return {"ok": True, "ignored": True, "reason": "stale battle lobby card"}
             if command in {"패효율 대결", "패효율 대결 생성"}:
                 if not battle or battle.status in {"finished", "ended"}:
                     battle = MahjongBattle(
@@ -218,7 +231,7 @@ class MahjongBattleService:
                     )
                     self.battles[room_id] = battle
                     self._save()
-                client.send_room_card(room_id=room_id, markdown="패효율 대결 로비", card=build_battle_menu_card(battle))
+                self._send_menu(client, battle, "패효율 대결 로비", person_id)
             elif command == "패효율 대결 다시 하기":
                 if not battle or battle.status not in {"finished", "ended"}:
                     return {"ok": True, "ignored": True}
@@ -231,21 +244,29 @@ class MahjongBattleService:
                 battle.round_id = battle.turn_no = 0; battle.state_version += 1
                 battle.current_round = None; battle.completed_rounds = []
                 battle.round_started_at = battle.round_deadline_at = battle.result_deadline_at = None
-                self._save(); self._send_menu(client, battle, "새 대결 로비로 돌아왔습니다.")
+                self._save(); self._send_menu(client, battle, "새 대결 로비로 돌아왔습니다.", person_id)
             elif command == "패효율 대결 메인 메뉴":
                 client.send_room_card(room_id=room_id, markdown="FSS 게임 선택", card=build_game_status_selector_card())
             elif command == "패효율 대결 참가":
-                if not battle or battle.status != "lobby": return self._notice(client, room_id, "참가할 대결 로비가 없습니다.")
+                if not battle:
+                    battle = MahjongBattle(str(uuid4()), room_id, "", "lobby", [])
+                    self.battles[room_id] = battle
+                if battle.status != "lobby": return self._notice(client, room_id, "참가할 대결 로비가 없습니다.")
                 if battle.player(person_id): return self._notice(client, room_id, "이미 참가했습니다.")
-                battle.players.append(BattlePlayer(person_id, name, len(battle.players)))
-                self._save(); self._send_menu(client, battle, f"{name}님이 참가했습니다.")
+                next_order = max((player.join_order for player in battle.players), default=-1) + 1
+                battle.players.append(BattlePlayer(person_id, name, next_order))
+                if not battle.host_person_id:
+                    battle.host_person_id = person_id
+                battle.state_version += 1
+                self._save(); self._send_menu(client, battle, f"{name}님이 참가했습니다.", person_id)
             elif command == "패효율 대결 참가 취소":
                 if not battle or battle.status != "lobby": return self._notice(client, room_id, "참가를 취소할 대결 로비가 없습니다.")
                 if battle.host_person_id == person_id: return self._notice(client, room_id, "방장은 참가를 취소할 수 없습니다. 대결 종료를 이용해주세요.")
                 player = battle.player(person_id)
                 if not player: return self._notice(client, room_id, "참가 중인 대결이 아닙니다.")
                 battle.players.remove(player)
-                self._save(); self._send_menu(client, battle, f"{player.display_name}님이 참가를 취소했습니다.")
+                battle.state_version += 1
+                self._save(); self._send_menu(client, battle, f"{player.display_name}님이 참가를 취소했습니다.", person_id)
             elif command == "패효율 대결 시작":
                 if not battle or battle.status != "lobby": return self._notice(client, room_id, "시작할 대결 로비가 없습니다.")
                 if battle.host_person_id != person_id: return self._notice(client, room_id, "방장만 대결을 시작할 수 있습니다.")
@@ -254,7 +275,29 @@ class MahjongBattleService:
             elif command == "패효율 대결 상태":
                 client.send_room_card(
                     room_id=room_id, markdown="패효율 대결 상태",
-                    card=build_battle_status_card(battle, self.clock()),
+                    card=build_battle_status_card(
+                        battle, self.clock(), person_id,
+                        self.is_force_reset_admin(person_id),
+                    ),
+                )
+            elif command == "패효율 대결 방장 강퇴":
+                if not self.is_force_reset_admin(person_id):
+                    return self._notice(client, room_id, "권한이 없습니다. 강제리셋 권한자만 방장을 강퇴할 수 있습니다.")
+                if not battle or battle.status != "lobby":
+                    return self._notice(client, room_id, "대기실 상태에서만 방장을 강퇴할 수 있습니다.")
+                host = battle.player(battle.host_person_id)
+                if not host:
+                    return {"ok": True, "ignored": True, "reason": "host already left"}
+                battle.players.remove(host)
+                successor = min(battle.players, key=lambda player: player.join_order, default=None)
+                battle.host_person_id = successor.person_id if successor else ""
+                battle.state_version += 1
+                self._save()
+                successor_text = successor.display_name if successor else "없음"
+                self._send_menu(
+                    client, battle,
+                    f"{host.display_name} 방장을 대기실에서 강퇴했습니다. 새 방장: {successor_text}",
+                    person_id,
                 )
             elif command == "패효율 대결 종료":
                 if not battle or battle.status not in {"lobby", "active"}: return self._notice(client, room_id, "종료할 대결이 없습니다.")
@@ -262,7 +305,7 @@ class MahjongBattleService:
                 self._cancel_timer(room_id); battle.status = "ended"; battle.phase = "FINISHED"; battle.state_version += 1; self._save()
                 client.send_room_card(
                     room_id=room_id, markdown="방장이 패효율 대결을 종료했습니다.",
-                    card=build_battle_status_card(battle, self.clock()),
+                    card=build_battle_status_card(battle, self.clock(), person_id, self.is_force_reset_admin(person_id)),
                 )
             else:
                 client.send_room_message(room_id=room_id, markdown=BATTLE_HELP)
@@ -502,7 +545,25 @@ class MahjongBattleService:
             if count > 0 and shanten([*tiles, tile]) == -1
         ]
 
-    def _send_menu(self, client, battle, markdown): client.send_room_card(room_id=battle.room_id, markdown=markdown, card=build_battle_menu_card(battle))
+    def _send_menu(self, client, battle, markdown, viewer_person_id=None):
+        client.send_room_card(
+            room_id=battle.room_id,
+            markdown=markdown,
+            card=build_battle_menu_card(
+                battle, viewer_person_id,
+                self.is_force_reset_admin(viewer_person_id),
+            ),
+        )
+    @staticmethod
+    def _valid_lobby_action_context(room_id, battle, inputs):
+        if inputs.get("room_id") != room_id:
+            return False
+        expected_battle_id = battle.battle_id if battle else ""
+        expected_version = battle.state_version if battle else 0
+        return (
+            inputs.get("battle_id", "") == expected_battle_id
+            and _safe_int(inputs.get("state_version")) == expected_version
+        )
     @staticmethod
     def _notice(client, room_id, message, ignored=False):
         client.send_room_message(room_id=room_id, markdown=message)
