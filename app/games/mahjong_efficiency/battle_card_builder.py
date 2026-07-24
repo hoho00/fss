@@ -37,12 +37,15 @@ def _tile_column(item, battle):
 def _lobby_actions(battle, viewer_person_id=None, can_force_reset=False):
     player = battle.player(viewer_person_id) if battle and viewer_person_id else None
     is_host = bool(battle and battle.host_person_id == viewer_person_id)
+    orphaned = bool(battle and not battle.host_person_id and player)
+    can_end = is_host or can_force_reset or orphaned
     actions = []
     if viewer_person_id is None:
         actions.extend([
             ("참가", "패효율 대결 참가"),
             ("참가 취소", "패효율 대결 참가 취소"),
             ("시작", "패효율 대결 시작"),
+            ("대결 종료", "패효율 대결 종료"),
         ])
     elif not player:
         actions.append(("참가", "패효율 대결 참가"))
@@ -50,6 +53,10 @@ def _lobby_actions(battle, viewer_person_id=None, can_force_reset=False):
         actions.append(("참가 취소", "패효율 대결 참가 취소"))
     if is_host:
         actions.append(("시작", "패효율 대결 시작"))
+    if can_end:
+        actions.append(
+            ("강제 종료" if can_force_reset and not is_host else "대결 종료", "패효율 대결 종료")
+        )
     actions.extend([
         ("상태", "패효율 대결 상태"),
         ("도움말", "패효율 대결 도움말"),
@@ -57,6 +64,22 @@ def _lobby_actions(battle, viewer_person_id=None, can_force_reset=False):
     ])
     if can_force_reset:
         actions.insert(-2, ("방장 강퇴", "패효율 대결 방장 강퇴"))
+    return actions
+
+
+def _active_actions(battle, viewer_person_id=None, can_force_reset=False):
+    is_host = bool(battle and battle.host_person_id == viewer_person_id)
+    orphaned = bool(battle and not battle.host_person_id and battle.player(viewer_person_id))
+    can_end = is_host or can_force_reset or orphaned
+    actions = [("상태", "패효율 대결 상태")]
+    if can_end:
+        actions.append(
+            ("강제 종료" if can_force_reset and not is_host else "대결 종료", "패효율 대결 종료")
+        )
+    actions.extend([
+        ("도움말", "패효율 대결 도움말"),
+        ("메인 메뉴", "패효율 대결 메인 메뉴"),
+    ])
     return actions
 
 
@@ -82,10 +105,7 @@ def build_battle_menu_card(
     elif battle.status == "lobby":
         actions = _lobby_actions(battle, viewer_person_id, can_force_reset)
     else:
-        actions = [
-            ("상태", "패효율 대결 상태"), ("대결 종료", "패효율 대결 종료"),
-            ("도움말", "패효율 대결 도움말"), ("메인 메뉴", "패효율 대결 메인 메뉴"),
-        ]
+        actions = _active_actions(battle, viewer_person_id, can_force_reset)
     host_player = battle.player(battle.host_person_id) if battle else None
     host = host_player.display_name if host_player else "없음"
     return {
@@ -175,6 +195,8 @@ def build_battle_status_card(
         actions = _lobby_actions(battle, viewer_person_id, can_force_reset)
     elif battle.status in {"finished", "ended"}:
         actions = [("상태", "패효율 대결 상태"), ("도움말", "패효율 대결 도움말"), ("메인 메뉴", "패효율 대결 메인 메뉴")]
+    else:
+        actions = _active_actions(battle, viewer_person_id, can_force_reset)
     return {"$schema": "http://adaptivecards.io/schemas/adaptive-card.json", "type": "AdaptiveCard", "version": "1.3", "body": body, "actions": _submit_actions(actions, battle)}
 
 

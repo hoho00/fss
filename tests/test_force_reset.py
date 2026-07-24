@@ -135,6 +135,29 @@ def test_force_reset_allows_additional_admin_person_id(monkeypatch):
     assert main_module.get_game_for_room("room-a") is not game
 
 
+def test_force_reset_clears_mahjong_battle_for_room(monkeypatch):
+    reset_all_games(monkeypatch)
+    setup_started_room("room-a")
+    cleared = []
+
+    monkeypatch.setattr(
+        main_module.mahjong_battle_service,
+        "clear_room",
+        lambda room_id: cleared.append(room_id) or True,
+    )
+
+    response = command(
+        "room-a",
+        "room-a-user-1",
+        "상현",
+        "FSS 강제리셋",
+    ).json()
+
+    assert response["ok"] is True
+    assert cleared == ["room-a"]
+    assert "패효율 대결 상태도 삭제했습니다" in response["message"]
+
+
 def test_ranking_reset_requires_admin_email_and_preserves_game(monkeypatch, tmp_path):
     reset_all_games(monkeypatch)
     game = setup_started_room("room-a")
