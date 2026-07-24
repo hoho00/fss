@@ -24,6 +24,7 @@ class AdminCommandService:
         clear_card_token: Callable[[str], None],
         save_state: Callable[[], None],
         force_reset_admin_person_ids: tuple[str, ...] = (),
+        clear_mahjong_battle: Callable[[str], bool] | None = None,
     ):
         self.command_parser = command_parser
         self.admin_email = admin_email.strip().lower()
@@ -39,6 +40,7 @@ class AdminCommandService:
         self.cancel_timer = cancel_timer
         self.clear_card_token = clear_card_token
         self.save_state = save_state
+        self.clear_mahjong_battle = clear_mahjong_battle
 
     def is_force_reset(self, text: str) -> bool:
         return self.command_parser.normalize(text) == "강제리셋"
@@ -69,11 +71,17 @@ class AdminCommandService:
         self.cancel_timer(room_id)
         self.replace_game(room_id, self.get_game_type(room_id))
         self.clear_card_token(room_id)
+        battle_cleared = False
+        if self.clear_mahjong_battle is not None:
+            battle_cleared = bool(self.clear_mahjong_battle(room_id))
         self.save_state()
         game = self.get_game(room_id)
+        message = "관리자 강제리셋으로 현재 방의 게임을 초기화했습니다."
+        if battle_cleared:
+            message += " 패효율 대결 상태도 삭제했습니다."
         return {
             "ok": True,
-            "message": "관리자 강제리셋으로 현재 방의 게임을 초기화했습니다.",
+            "message": message,
             "status": game.status(),
         }
 

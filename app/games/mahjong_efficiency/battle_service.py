@@ -33,7 +33,7 @@ BATTLE_HELP = (
     "비효율 타패는 손실 장수만큼 감점, "
     "샨텐 악화는 최고 효율 손실과 추가 10점 감점, 미응답은 0점입니다.\n"
     "명령: 패효율 대결 / 참가 / 참가 취소 / 시작 / 상태 / 종료 / 도움말\n"
-    "강제리셋 권한자 복구 명령: 패효율 대결 방장 강퇴\n"
+    "강제리셋 권한자 복구 명령: 패효율 대결 종료 · 패효율 대결 방장 강퇴 · 강제리셋\n"
     "Webex 버튼으로도 동일하게 조작할 수 있습니다."
 )
 
@@ -191,6 +191,27 @@ class MahjongBattleService:
     def normalized_command(self, text): return " ".join(self.command_parser.normalize(text).split())
     def is_command(self, text): return self.normalized_command(text) in BATTLE_COMMANDS
 
+    def _can_end_battle(self, battle: MahjongBattle | None, person_id: str | None) -> bool:
+        if not battle or not person_id:
+            return False
+        if battle.host_person_id == person_id:
+            return True
+        if self.is_force_reset_admin(person_id):
+            return True
+        # Host left or was cleared: any remaining participant can end.
+        return (not battle.host_person_id) and bool(battle.player(person_id))
+
+    def clear_room(self, room_id: str) -> bool:
+        """Cancel timers and drop persisted battle state for one room."""
+        with self._room_lock(room_id):
+            existed = room_id in self.battles or room_id in self.invalidated_rooms
+            self._cancel_timer(room_id)
+            self.battles.pop(room_id, None)
+            self.invalidated_rooms.discard(room_id)
+            if existed:
+                self._save()
+            return existed
+
     def handle_command(self, client, message):
         command = self.normalized_command(message.get("text", ""))
         room_id, person_id = message.get("roomId"), message.get("personId")
@@ -300,12 +321,33 @@ class MahjongBattleService:
                     person_id,
                 )
             elif command == "패효율 대결 종료":
-                if not battle or battle.status not in {"lobby", "active"}: return self._notice(client, room_id, "종료할 대결이 없습니다.")
-                if battle.host_person_id != person_id: return self._notice(client, room_id, "방장만 대결을 종료할 수 있습니다.")
-                self._cancel_timer(room_id); battle.status = "ended"; battle.phase = "FINISHED"; battle.state_version += 1; self._save()
+                if not battle or battle.status not in {"lobby", "active"}:
+                    return self._notice(client, room_id, "종료할 대결이 없습니다.")
+                if not self._can_end_battle(battle, person_id):
+                    return self._notice(
+                        client, room_id,
+                        "방장 또는 강제리셋 권한자만 대결을 종료할 수 있습니다.",
+                    )
+                is_admin_end = (
+                    battle.host_person_id != person_id
+                    and self.is_force_reset_admin(person_id)
+                )
+                self._cancel_timer(room_id)
+                battle.status = "ended"
+                battle.phase = "FINISHED"
+                battle.state_version += 1
+                self._save()
+                markdown = (
+                    "관리자가 패효율 대결을 강제 종료했습니다."
+                    if is_admin_end
+                    else "방장이 패효율 대결을 종료했습니다."
+                )
                 client.send_room_card(
-                    room_id=room_id, markdown="방장이 패효율 대결을 종료했습니다.",
-                    card=build_battle_status_card(battle, self.clock(), person_id, self.is_force_reset_admin(person_id)),
+                    room_id=room_id, markdown=markdown,
+                    card=build_battle_status_card(
+                        battle, self.clock(), person_id,
+                        self.is_force_reset_admin(person_id),
+                    ),
                 )
             else:
                 client.send_room_message(room_id=room_id, markdown=BATTLE_HELP)

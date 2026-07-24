@@ -355,6 +355,7 @@ def _admin_service() -> AdminCommandService:
         clear_card_token=lambda room_id: latest_card_tokens.pop(room_id, None),
         save_state=save_room_games,
         force_reset_admin_person_ids=FORCE_RESET_ADMIN_PERSON_IDS,
+        clear_mahjong_battle=mahjong_battle_service.clear_room,
     )
 
 

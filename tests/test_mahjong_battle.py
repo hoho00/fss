@@ -269,7 +269,58 @@ def test_name_cleanup_does_not_change_person_id_host_permissions():
     game, client = service(); game.handle_command(client, message("패효율 대결 생성", "p1", "방장 (회사)")); battle = game.battles["room"]
     assert battle.players[0].display_name == "방장" and battle.host_person_id == "p1"
     game.handle_command(client, message("패효율 대결 종료", "p2", "방장"))
-    assert battle.status == "lobby" and "방장만" in client.messages[-1][1]
+    assert battle.status == "lobby" and "방장 또는 강제리셋" in client.messages[-1][1]
+
+
+def test_force_reset_admin_can_end_active_battle():
+    game, client, battle = active_game()
+    game.is_force_reset_admin = lambda person_id: person_id == "admin"
+    game.handle_command(client, message("패효율 대결 종료", "admin", "관리자"))
+    assert battle.status == "ended"
+    assert client.cards[-1][1] == "관리자가 패효율 대결을 강제 종료했습니다."
+
+
+def test_orphaned_lobby_participant_can_end_when_host_missing():
+    game, client = service()
+    game.handle_command(client, message("패효율 대결 생성", "host", "방장"))
+    game.handle_command(client, message("패효율 대결 참가", "p2", "참가자"))
+    battle = game.battles["room"]
+    battle.host_person_id = ""
+    game.handle_command(client, message("패효율 대결 종료", "p2", "참가자"))
+    assert battle.status == "ended"
+
+
+def test_clear_room_removes_persisted_battle():
+    store = MemoryStore()
+    game, client = service(store=store)
+    game.handle_command(client, message("패효율 대결 생성"))
+    assert "room" in store.data["battles"]
+    assert game.clear_room("room") is True
+    assert "room" not in game.battles
+    assert "room" not in store.data["battles"]
+    restored, _ = service(store=store)
+    assert "room" not in restored.battles
+
+
+def test_host_end_button_appears_on_lobby_and_active_menu():
+    game, client = service()
+    game.handle_command(client, message("패효율 대결 생성"))
+    battle = game.battles["room"]
+    lobby_titles = [action["title"] for action in build_battle_menu_card(battle, "p1")["actions"]]
+    assert "대결 종료" in lobby_titles
+    game.handle_command(client, message("패효율 대결 참가", "p2", "참가자"))
+    game._generate_round = fixed_round
+    game.handle_command(client, message("패효율 대결 시작"))
+    active_host = [action["title"] for action in build_battle_menu_card(battle, "p1")["actions"]]
+    active_guest = [action["title"] for action in build_battle_menu_card(battle, "p2")["actions"]]
+    admin_titles = [
+        action["title"]
+        for action in build_battle_menu_card(battle, "admin", can_force_reset=True)["actions"]
+    ]
+    assert "대결 종료" in active_host
+    assert "대결 종료" not in active_guest
+    assert "강제 종료" in admin_titles
+
 
 
 def test_participant_can_cancel_join_from_lobby_and_menu_has_button():
