@@ -162,8 +162,8 @@ class SwordUpgradeGame:
         return (
             f"{display_name}님이 보스 레이드를 시작했습니다.\n"
             f"검을 가진 {len(invites)}명에게 초대 DM을 보냈습니다.\n"
-            f"전원이 수락/거부하면 보스가 등장합니다.\n"
-            f"(시작자는 자동 수락)",
+            f"전원 응답을 기다리거나, 시작자가 `지금 시작`으로 바로 전투에 들어갈 수 있습니다.\n"
+            f"(시작자는 자동 수락, 현재 검 강화 레벨 그대로 적용)",
             invite_targets,
         )
 
@@ -190,10 +190,37 @@ class SwordUpgradeGame:
 
         if not raid.all_invites_answered():
             pending = ", ".join(item.display_name for item in raid.pending_invitees())
-            return f"{message}\n응답 대기: {pending}"
+            return (
+                f"{message}\n응답 대기: {pending}\n"
+                f"(시작자는 `지금 시작`으로 대기 없이 전투를 열 수 있습니다.)"
+            )
 
         spawn = self._spawn_boss_if_ready()
         return f"{message}\n전원 응답 완료.\n{spawn}"
+
+    def force_start_raid(self, person_id: str, display_name: str) -> str:
+        """응답 대기 없이, 현재 수락 인원과 현재 검 강화로 전투 시작."""
+        raid = self._require_raid()
+        if raid.phase != RaidPhase.INVITING:
+            raise ValueError("초대 단계에서만 지금 시작할 수 있습니다.")
+        if person_id != raid.starter_id:
+            raise ValueError("레이드 시작자만 지금 시작할 수 있습니다.")
+
+        skipped = []
+        for invitee in raid.pending_invitees():
+            invitee.response = "rejected"
+            skipped.append(invitee.display_name)
+
+        spawn = self._spawn_boss_if_ready()
+        if self.raid is None:
+            return spawn
+
+        lines = [f"{display_name}님이 응답 대기 없이 레이드 전투를 시작했습니다."]
+        if skipped:
+            lines.append(f"미응답(불참 처리): {', '.join(skipped)}")
+        lines.append("참가자의 현재 검 강화 레벨이 그대로 적용됩니다.")
+        lines.append(spawn)
+        return "\n".join(lines)
 
     def attack_boss(self, person_id: str, display_name: str) -> str:
         raid = self._require_raid()

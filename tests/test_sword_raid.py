@@ -156,6 +156,42 @@ def test_raid_fail_when_damage_too_low(monkeypatch):
     assert game.raid is None
 
 
+def test_force_start_raid_keeps_current_sword_levels(monkeypatch):
+    room = "raid-force"
+    game = select_and_seed(
+        room,
+        [("u1", "상현", 5), ("u2", "철수", 7), ("u3", "영희", 2)],
+        monkeypatch,
+    )
+    monkeypatch.setattr(
+        "app.games.sword_upgrade.domain.raid.random.randint",
+        lambda a, b: 77,
+    )
+
+    command(room, "u1", "상현", "보스레이드")
+    command(room, "u2", "철수", "레이드수락")
+    # u3 still pending — starter force-starts with current levels
+    assert game.swords["u1"].level == 5
+    assert game.swords["u2"].level == 7
+
+    result = command(room, "u1", "상현", "레이드지금시작").json()
+    assert result["ok"] is True
+    assert "지금" in result["message"] or "응답 대기 없이" in result["message"]
+    assert "보스 등장" in result["message"]
+    assert "+5강" in result["message"]
+    assert "+7강" in result["message"]
+    assert game.raid.phase == RaidPhase.BATTLING
+    assert len(game.raid.accepted()) == 2
+    assert game.raid.invites["u3"].response == "rejected"
+    # levels unchanged by starting battle
+    assert game.swords["u1"].level == 5
+    assert game.swords["u2"].level == 7
+    assert game.swords["u3"].level == 2
+
+    denied = command(room, "u2", "철수", "레이드지금시작").json()
+    assert denied["ok"] is False
+
+
 def test_help_includes_raid_rules(monkeypatch):
     reset_platform(monkeypatch)
     command("help-room", "u1", "상현", "게임선택 검키우기")
@@ -163,6 +199,7 @@ def test_help_includes_raid_rules(monkeypatch):
     assert "보스 레이드" in result["message"]
     assert "크리티컬" in result["message"]
     assert "레이드 중에는 강화" in result["message"]
+    assert "지금 시작" in result["message"]
 
 
 def test_raid_card_actions_change_by_phase(monkeypatch):
@@ -175,8 +212,10 @@ def test_raid_card_actions_change_by_phase(monkeypatch):
     command(room, "u1", "상현", "보스레이드")
     inviting = [cmd for _, cmd in main_module._build_available_card_actions(game)]
     assert "레이드수락" in inviting
+    assert "레이드지금시작" in inviting
     assert "게임선택 홀덤" not in inviting
 
     command(room, "u2", "철수", "레이드수락")
     battling = [cmd for _, cmd in main_module._build_available_card_actions(game)]
     assert "공격" in battling
+    assert "레이드지금시작" not in battling

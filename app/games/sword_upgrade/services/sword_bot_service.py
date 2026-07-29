@@ -81,6 +81,8 @@ class SwordUpgradeBotService:
                 message = self.game.respond_raid(person_id, display_name, accepted=True)
             elif normalized in {"레이드거부", "거부"}:
                 message = self.game.respond_raid(person_id, display_name, accepted=False)
+            elif normalized in {"레이드지금시작", "지금시작", "지금 시작", "초대마감"}:
+                message = self.game.force_start_raid(person_id, display_name)
             elif normalized == "공격":
                 message = self.game.attack_boss(person_id, display_name)
             elif normalized in {"레이드취소", "보스레이드취소"}:
@@ -126,7 +128,9 @@ class SwordUpgradeBotService:
             "보스 레이드\n"
             "- 시작: `@FSS 보스레이드` (검을 가진 전원에게 DM 초대)\n"
             "- 초대 응답: DM 버튼 또는 `@FSS 레이드수락` / `@FSS 레이드거부`\n"
-            "- 전원이 응답하면 랜덤 체력 보스가 등장합니다.\n"
+            "- 전원 응답 전이라도 시작자가 `지금 시작`으로 전투를 열 수 있습니다.\n"
+            "- 전투 시 참가자의 현재 검 강화 레벨이 그대로 적용됩니다.\n"
+            "- 전원이 응답하거나 지금 시작하면 랜덤 체력 보스가 등장합니다.\n"
             "- 원칙: 한 라운드(참가자 전원 각 1회 공격)로 처치\n"
             "- 공격: `@FSS 공격` → 주사위 2개\n"
             "  · 합 10~12 크리티컬(데미지 x2)\n"
@@ -136,7 +140,7 @@ class SwordUpgradeBotService:
             "- 전원 공격 후 클리어/실패를 발표하고 레이드가 종료됩니다.\n"
             "- 레이드 중에는 강화·리셋·다른 게임 선택이 불가합니다.\n"
             "- 취소: 시작자만 `@FSS 레이드취소`\n\n"
-            "명령어: 강화 / 보스레이드 / 레이드수락 / 레이드거부 / 공격 / "
+            "명령어: 강화 / 보스레이드 / 레이드수락 / 레이드거부 / 레이드지금시작 / 공격 / "
             "레이드취소 / 내검 / 상태 / 랭킹 / 리셋\n"
             "다른 게임: @FSS 게임선택 홀덤 / 주사위 / 바보라이어게임"
         )

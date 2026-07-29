@@ -7,6 +7,7 @@ def build_sword_upgrade_card_actions(game: SwordUpgradeGame) -> list[tuple[str, 
     if game.raid is not None and game.raid.phase == RaidPhase.INVITING:
         actions.extend(
             [
+                ("지금 시작", "레이드지금시작"),
                 ("레이드수락", "레이드수락"),
                 ("레이드거부", "레이드거부"),
                 ("레이드취소", "레이드취소"),

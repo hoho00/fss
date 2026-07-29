@@ -40,6 +40,7 @@ def can_accept_stale_action(game, command_text: str) -> bool:
             "랭킹",
             "레이드수락",
             "레이드거부",
+            "레이드지금시작",
             "공격",
             "레이드취소",
             "보스레이드",
