@@ -299,13 +299,26 @@ class SwordUpgradeGame:
                 f"{attack.note} → {attack.damage}"
             )
         lines.append(f"총 데미지 {total_damage} / 보스 체력 {raid.boss_max_hp}")
+
+        delta = 1 if cleared else -1
+        reward_lines = []
+        for invitee in raid.accepted():
+            sword = self.swords.get(invitee.person_id)
+            if sword is None:
+                continue
+            previous = sword.level
+            sword.level = max(0, sword.level + delta)
+            arrow = f"{previous}강 → {sword.level}강"
+            reward_lines.append(f"- {invitee.display_name}: {arrow}")
+
         if cleared:
-            lines.append("클리어! 보스를 처치했습니다.")
+            lines.append("클리어! 보스를 처치했습니다. 참가자 전원 +1강")
         else:
             lines.append(
                 f"실패... 보스 체력이 {raid.boss_hp} 남았습니다. "
-                "한 라운드 공격으로 처치하지 못했습니다."
+                "참가자 전원 -1강"
             )
+        lines.extend(reward_lines)
         self.raid = None
         return "\n".join(lines)
 

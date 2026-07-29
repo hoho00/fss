@@ -130,14 +130,18 @@ def test_raid_attacks_resolve_clear_or_fail(monkeypatch):
     assert result["ok"] is True
     assert "레이드 결과" in result["message"]
     assert "클리어" in result["message"]
+    assert "+1강" in result["message"]
     assert game.raid is None
+    assert game.swords["u1"].level == 5
+    assert game.swords["u2"].level == 5
+    assert game.swords["u3"].level == 5
 
 
 def test_raid_fail_when_damage_too_low(monkeypatch):
     room = "raid-fail"
     game = select_and_seed(
         room,
-        [("u1", "상현", 0), ("u2", "철수", 0), ("u3", "영희", 0)],
+        [("u1", "상현", 2), ("u2", "철수", 1), ("u3", "영희", 0)],
         monkeypatch,
     )
     values = iter([200, 2, 1, 2, 1, 2, 1])  # high hp, miss rolls
@@ -153,7 +157,11 @@ def test_raid_fail_when_damage_too_low(monkeypatch):
     command(room, "u2", "철수", "공격")
     result = command(room, "u3", "영희", "공격").json()
     assert "실패" in result["message"]
+    assert "-1강" in result["message"]
     assert game.raid is None
+    assert game.swords["u1"].level == 1
+    assert game.swords["u2"].level == 0
+    assert game.swords["u3"].level == 0  # already 0, stays 0
 
 
 def test_force_start_raid_keeps_current_sword_levels(monkeypatch):
