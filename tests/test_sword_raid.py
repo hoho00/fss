@@ -42,16 +42,25 @@ def select_and_seed(room: str, players: list[tuple[str, str, int]], monkeypatch)
     return game
 
 
-def test_resolve_attack_miss_critical_and_doubles(monkeypatch):
-    rolls = iter([1, 1, 4, 5])  # doubles 1+1, then bonus 4+5, first_sum=2 miss
+def test_resolve_attack_miss_normal_and_critical(monkeypatch):
+    rolls = iter([1, 1, 4, 5])  # first_sum=2 miss (doubles still rolled)
     monkeypatch.setattr(
         "app.games.sword_upgrade.domain.raid.random.randint",
         lambda a, b: next(rolls),
     )
     miss = resolve_attack_dice(3)
     assert miss.damage == 0
-    assert miss.note == "미스"
+    assert "미스" in miss.note
     assert miss.dice == [1, 1, 4, 5]
+
+    rolls = iter([3, 4])  # sum 7 normal
+    monkeypatch.setattr(
+        "app.games.sword_upgrade.domain.raid.random.randint",
+        lambda a, b: next(rolls),
+    )
+    normal = resolve_attack_dice(5)
+    assert normal.note == "평타"
+    assert normal.damage == 1 * 5  # tier × grade
 
     rolls = iter([6, 5])  # sum 11 crit
     monkeypatch.setattr(
@@ -60,7 +69,16 @@ def test_resolve_attack_miss_critical_and_doubles(monkeypatch):
     )
     crit = resolve_attack_dice(2)
     assert crit.note == "크리티컬"
-    assert crit.damage == (2 + 1) * 11 * 2
+    assert crit.damage == 1 * 2 * 2
+
+    monkeypatch.setattr(
+        "app.games.sword_upgrade.domain.raid.random.randint",
+        lambda a, b: 2,
+    )
+    zero_hit = resolve_attack_dice(0)
+    assert zero_hit.first_sum == 4
+    assert zero_hit.note.startswith("평타")
+    assert zero_hit.damage == 0
 
 
 def test_raid_invite_dm_and_boss_spawn_after_all_respond(monkeypatch):
@@ -108,8 +126,8 @@ def test_raid_attacks_resolve_clear_or_fail(monkeypatch):
         monkeypatch,
     )
 
-    # Force predictable boss hp and dice: always 6,6 then no need more for non-double wait 6+5
-    values = iter([40, 6, 5, 6, 5, 6, 5])  # hp then three attacks of 11
+    # hp 10; three crits (6+5) → damage 8 each → clear
+    values = iter([10, 6, 5, 6, 5, 6, 5])
 
     def fake_randint(a, b):
         return next(values)
@@ -122,7 +140,7 @@ def test_raid_attacks_resolve_clear_or_fail(monkeypatch):
     command(room, "u1", "상현", "보스레이드")
     command(room, "u2", "철수", "레이드수락")
     command(room, "u3", "영희", "레이드수락")
-    assert game.raid.boss_hp == 40
+    assert game.raid.boss_hp == 10
 
     command(room, "u1", "상현", "공격")
     command(room, "u2", "철수", "공격")
@@ -135,7 +153,6 @@ def test_raid_attacks_resolve_clear_or_fail(monkeypatch):
     assert game.swords["u1"].level == 5
     assert game.swords["u2"].level == 5
     assert game.swords["u3"].level == 5
-
 
 def test_raid_fail_when_damage_too_low(monkeypatch):
     room = "raid-fail"

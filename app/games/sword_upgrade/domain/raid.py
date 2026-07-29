@@ -111,6 +111,9 @@ class BossRaid:
         return raid
 
 
+WEAPON_TIER = 1  # 무기 티어 (아직 미구현, 고정 1)
+
+
 def roll_die() -> int:
     return random.randint(1, 6)
 
@@ -118,35 +121,36 @@ def roll_die() -> int:
 def resolve_attack_dice(sword_level: int) -> RaidAttackResult:
     """2d6 공격 판정.
 
-    - 합 1~3: 미스 (데미지 0)
-    - 합 10~12: 크리티컬 (데미지 2배)
-    - 같은 눈: 한 번 더 굴려 합산
-    - 기본 데미지 = (검강 + 1) × 주사위 합
+    - 합 2~3: 미스 (데미지 0)
+    - 합 4~10: 평타
+    - 합 11~12: 크리티컬 (평타 데미지 ×2)
+    - 평타 데미지 = 무기티어 × 무기등급(검 강화 강수)
+    - 같은 눈이면 한 번 더 굴림(연출), 판정은 첫 두 눈의 합 기준
     """
     first = [roll_die(), roll_die()]
     dice = list(first)
     first_sum = first[0] + first[1]
     if first[0] == first[1]:
         dice.extend([roll_die(), roll_die()])
-    total = sum(dice)
-    multiplier = sword_level + 1
+
+    grade = sword_level
+    base = WEAPON_TIER * grade
 
     if first_sum <= 3:
-        return RaidAttackResult(
-            person_id="",
-            display_name="",
-            dice=dice,
-            first_sum=first_sum,
-            damage=0,
-            note="미스",
-        )
-    damage = multiplier * total
-    note = "적중"
-    if first_sum >= 10:
-        damage *= 2
+        damage = 0
+        note = "미스"
+    elif first_sum >= 11:
+        damage = base * 2
         note = "크리티컬"
-    if len(dice) > 2:
+    else:
+        damage = base
+        note = "평타"
+
+    if len(dice) > 2 and note != "미스":
         note = f"{note}+더블"
+    elif len(dice) > 2:
+        note = "미스+더블"
+
     return RaidAttackResult(
         person_id="",
         display_name="",
@@ -158,10 +162,13 @@ def resolve_attack_dice(sword_level: int) -> RaidAttackResult:
 
 
 def roll_boss_hp(accepted_levels: list[int]) -> int:
-    """한 라운드(전원 1회 공격)로 잡을 수 있을 법한 랜덤 체력."""
-    power = sum(level + 1 for level in accepted_levels) or 1
-    low = max(1, power * 4)
-    high = max(low + 1, power * 9)
+    """한 라운드(전원 1회 공격)로 잡을 수 있을 법한 랜덤 체력.
+
+    기대 데미지 ≈ 티어×등급 기준이므로 강수 합으로 스케일합니다.
+    """
+    power = sum(max(level, 1) * WEAPON_TIER for level in accepted_levels) or 1
+    low = max(1, power)
+    high = max(low + 1, int(power * 2.5))
     return random.randint(low, high)
 
 
