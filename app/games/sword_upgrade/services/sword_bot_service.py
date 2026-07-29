@@ -2,6 +2,7 @@ from app.commands.command import CommandType
 from app.commands.parser import CommandParser
 from app.core.game_response import GameResponse
 from app.games.sword_upgrade.domain.game import SwordUpgradeGame
+from app.games.sword_upgrade.services.raid_invite_card import build_raid_invite_card
 from app.services.display_name import clean_display_name
 from app.services.stats_store import JsonStatsStore
 
@@ -12,10 +13,12 @@ class SwordUpgradeBotService:
         game: SwordUpgradeGame,
         command_parser: CommandParser,
         stats_store: JsonStatsStore | None = None,
+        room_id: str | None = None,
     ):
         self.game = game
         self.command_parser = command_parser
         self.stats_store = stats_store
+        self.room_id = room_id or "unknown-room"
 
     def handle_text_command(
         self,
@@ -31,6 +34,7 @@ class SwordUpgradeBotService:
             normalized = self.command_parser.normalize(text)
             private = False
             silent_public = False
+            direct_messages: list[dict] = []
 
             if normalized in {"검생성", "검 생성", "검만들기", "검 만들기"}:
                 self.game.ensure_sword(person_id, display_name)
@@ -58,6 +62,29 @@ class SwordUpgradeBotService:
                 message = self.game.my_sword(person_id, display_name)
                 private = True
                 silent_public = True
+            elif normalized in {"보스레이드", "레이드시작", "레이드", "보스 레이드"}:
+                message, invite_ids = self.game.start_raid(person_id, display_name)
+                for invite_id in invite_ids:
+                    direct_messages.append(
+                        {
+                            "person_id": invite_id,
+                            "message": (
+                                f"보스 레이드 초대\n"
+                                f"{display_name}님이 레이드를 시작했습니다.\n"
+                                f"아래 버튼으로 수락/거부하거나, "
+                                f"그룹방에서 `@FSS 레이드수락` / `@FSS 레이드거부`를 입력하세요."
+                            ),
+                            "card": build_raid_invite_card(self.room_id, display_name),
+                        }
+                    )
+            elif normalized in {"레이드수락", "수락"}:
+                message = self.game.respond_raid(person_id, display_name, accepted=True)
+            elif normalized in {"레이드거부", "거부"}:
+                message = self.game.respond_raid(person_id, display_name, accepted=False)
+            elif normalized == "공격":
+                message = self.game.attack_boss(person_id, display_name)
+            elif normalized in {"레이드취소", "보스레이드취소"}:
+                message = self.game.cancel_raid(person_id, display_name)
             elif normalized in {"리셋", "초기화", "reset"}:
                 self.game.reset()
                 message = f"{display_name}님이 검키우기 게임을 리셋했습니다."
@@ -80,6 +107,7 @@ class SwordUpgradeBotService:
                 "public_message": None,
                 "silent_public": silent_public,
                 "deal_private_cards": False,
+                "direct_messages": direct_messages,
             }
         except Exception as error:
             return {"ok": False, "message": str(error)}
@@ -95,6 +123,20 @@ class SwordUpgradeBotService:
             "- 강화는 채팅으로만 가능합니다. (버튼 불가)\n"
             "- 성공률: 1강 90%, 2강 80%, 3강 70% ... (10%씩 감소)\n"
             "- 실패 시 1강 하락, 낮은 확률(5%)로 파괴되어 0강이 됩니다.\n\n"
-            "명령어: 강화 / 내검 / 상태 / 랭킹 / 리셋\n"
+            "보스 레이드\n"
+            "- 시작: `@FSS 보스레이드` (검을 가진 전원에게 DM 초대)\n"
+            "- 초대 응답: DM 버튼 또는 `@FSS 레이드수락` / `@FSS 레이드거부`\n"
+            "- 전원이 응답하면 랜덤 체력 보스가 등장합니다.\n"
+            "- 원칙: 한 라운드(참가자 전원 각 1회 공격)로 처치\n"
+            "- 공격: `@FSS 공격` → 주사위 2개\n"
+            "  · 합 10~12 크리티컬(데미지 x2)\n"
+            "  · 합 1~3 미스(데미지 0)\n"
+            "  · 같은 눈이면 한 번 더 굴려 합산\n"
+            "  · 데미지 = (검강+1) × 주사위합 (크리티컬 시 x2)\n"
+            "- 전원 공격 후 클리어/실패를 발표하고 레이드가 종료됩니다.\n"
+            "- 레이드 중에는 강화·리셋·다른 게임 선택이 불가합니다.\n"
+            "- 취소: 시작자만 `@FSS 레이드취소`\n\n"
+            "명령어: 강화 / 보스레이드 / 레이드수락 / 레이드거부 / 공격 / "
+            "레이드취소 / 내검 / 상태 / 랭킹 / 리셋\n"
             "다른 게임: @FSS 게임선택 홀덤 / 주사위 / 바보라이어게임"
         )

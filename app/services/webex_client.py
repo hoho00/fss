@@ -124,14 +124,27 @@ class WebexClient:
         response.raise_for_status()
         return response.json()
 
-    def send_direct_message(self, person_id: str, markdown: str) -> dict:
+    def send_direct_message(
+        self,
+        person_id: str,
+        markdown: str,
+        card: dict | None = None,
+    ) -> dict:
+        payload: dict = {
+            "toPersonId": person_id,
+            "markdown": markdown,
+        }
+        if card is not None:
+            payload["attachments"] = [
+                {
+                    "contentType": "application/vnd.microsoft.card.adaptive",
+                    "content": card,
+                }
+            ]
         response = httpx.post(
             f"{self.base_url}/messages",
             headers=self._headers(),
-            json={
-                "toPersonId": person_id,
-                "markdown": markdown,
-            },
+            json=payload,
             timeout=10,
         )
         response.raise_for_status()

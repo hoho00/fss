@@ -18,7 +18,12 @@ class IncomingCommand:
 
 
 class PlatformGateway(Protocol):
-    def send_direct_message(self, person_id: str, markdown: str) -> dict: ...
+    def send_direct_message(
+        self,
+        person_id: str,
+        markdown: str,
+        card: dict | None = None,
+    ) -> dict: ...
 
     def send_room_card(
         self,

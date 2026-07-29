@@ -33,7 +33,17 @@ def can_accept_stale_action(game, command_text: str) -> bool:
     if isinstance(game, DiceGame):
         return command_text in {"상태", "참가"} and game.phase == DiceGamePhase.WAITING
     if isinstance(game, SwordUpgradeGame):
-        return command_text in {"상태", "내검", "도움말", "랭킹"}
+        return command_text in {
+            "상태",
+            "내검",
+            "도움말",
+            "랭킹",
+            "레이드수락",
+            "레이드거부",
+            "공격",
+            "레이드취소",
+            "보스레이드",
+        }
     if not isinstance(game, HoldemGame):
         return False
     if command_text in {"상태", "내카드", "도움말"}:

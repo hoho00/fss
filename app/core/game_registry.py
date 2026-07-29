@@ -73,7 +73,7 @@ def _fool_liar_service(game, parser, stats_store, room_id):
 
 
 def _sword_upgrade_service(game, parser, stats_store, room_id):
-    return SwordUpgradeBotService(game, parser, stats_store)
+    return SwordUpgradeBotService(game, parser, stats_store, room_id=room_id)
 
 
 def _holdem_active_actor(game: HoldemGame) -> str | None:

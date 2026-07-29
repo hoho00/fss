@@ -129,7 +129,9 @@ class GameCommandCoordinator:
         for item in direct_messages:
             try:
                 gateway.send_direct_message(
-                    person_id=item["person_id"], markdown=item["message"]
+                    person_id=item["person_id"],
+                    markdown=item["message"],
+                    card=item.get("card"),
                 )
             except Exception:
                 failures.append(item["person_id"])

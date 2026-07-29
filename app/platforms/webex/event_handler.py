@@ -226,6 +226,36 @@ class WebexEventHandler:
             return self.mahjong_efficiency_service.handle_command(client, message)
         if inputs.get("action") == "mahjong_discard" and self.mahjong_efficiency_service:
             return self.mahjong_efficiency_service.handle_action(client, action)
+        if inputs.get("action") == "sword_raid_invite":
+            raid_room_id = inputs.get("raid_room_id")
+            command = inputs.get("command")
+            if not raid_room_id or not command:
+                return {
+                    "ok": False,
+                    "message": "레이드 초대 버튼 정보가 올바르지 않습니다.",
+                }
+            person = client.get_person(person_id)
+            display_name = client.display_name_from_person(person, person_id)
+            result = self.command_coordinator.execute(
+                gateway=client,
+                room_id=raid_room_id,
+                person_id=person_id,
+                display_name=display_name,
+                text=command,
+            )
+            self.send_result(client, raid_room_id, person_id, result)
+            try:
+                client.send_direct_message(
+                    person_id=person_id,
+                    markdown=(
+                        result.get("message")
+                        if result.get("ok")
+                        else f"처리 실패: {result.get('message')}"
+                    ),
+                )
+            except Exception:
+                logger.exception("레이드 초대 응답 DM 확인 메시지 전송 실패")
+            return {"ok": True, "raid_invite": True}
         command_text = self.card_builder.extract_command(action)
         card_token = self.card_builder.extract_card_token(action)
         if not self.is_latest_card(room_id, card_token) and not self.can_accept_stale_card(

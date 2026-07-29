@@ -240,7 +240,7 @@ def build_game_status_selector_card() -> dict:
         "body": [
             _text("FSS 게임 선택", weight="Bolder", size="Large"),
             _text("확인할 게임을 선택하세요."),
-            _text("검키우기: 자동으로 검을 가지며, 강화는 채팅(@FSS 강화)으로만 가능합니다."),
+            _text("검키우기: 자동 검 보유, 강화는 채팅(@FSS 강화), 보스레이드는 @FSS 보스레이드"),
         ],
         "actions": [{"type": "Action.Submit", "title": title, "data": {"action": "game_status_selection", "command": command}} for title, command in actions],
     }

@@ -4,6 +4,7 @@ from typing import NotRequired, TypedDict
 class DirectMessage(TypedDict):
     person_id: str
     message: str
+    card: NotRequired[dict]
 
 
 class GameResponse(TypedDict):
