@@ -100,7 +100,7 @@ class AdminCommandService:
         if game_type is None:
             return {
                 "ok": False,
-                "message": "게임선택은 홀덤, 주사위 또는 바보 라이어게임만 가능합니다.",
+                "message": "게임선택은 홀덤, 주사위, 바보 라이어게임 또는 검키우기만 가능합니다.",
                 "status": current_game.status(),
             }
         plugin = plugin_for_type(game_type_for_game(current_game))
@@ -114,9 +114,12 @@ class AdminCommandService:
         selected = self.replace_game(room_id, game_type)
         self.clear_card_token(room_id)
         self.save_state()
+        hint = "참가 후 시작해주세요."
+        if game_type == GameType.SWORD_UPGRADE:
+            hint = "검생성 후 강화해보세요."
         return {
             "ok": True,
-            "message": f"{GAME_LABELS[game_type]} 게임을 선택했습니다. 참가 후 시작해주세요.",
+            "message": f"{GAME_LABELS[game_type]} 게임을 선택했습니다. {hint}",
             "status": selected.status(),
         }
 
@@ -132,6 +135,7 @@ class AdminCommandService:
             GameType.HOLDEM: self.stats_store.reset_holdem_ranking,
             GameType.DICE: self.stats_store.reset_dice_ranking,
             GameType.FOOL_LIAR: self.stats_store.reset_fool_liar_ranking,
+            GameType.SWORD_UPGRADE: lambda: None,
         }
         resetters[game_type]()
         return {

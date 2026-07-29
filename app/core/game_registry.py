@@ -10,6 +10,9 @@ from app.games.fool_liar.domain.game import FoolLiarGame, FoolLiarPhase
 from app.games.fool_liar.services.fool_liar_action_builder import build_fool_liar_card_actions
 from app.games.fool_liar.services.fool_liar_bot_service import FoolLiarBotService
 from app.games.holdem.services.holdem_action_builder import build_holdem_card_actions
+from app.games.sword_upgrade.domain.game import SwordUpgradeGame
+from app.games.sword_upgrade.services.sword_action_builder import build_sword_upgrade_card_actions
+from app.games.sword_upgrade.services.sword_bot_service import SwordUpgradeBotService
 from app.services.holdem_bot_service import HoldemBotService
 
 
@@ -17,9 +20,10 @@ class GameType(str, Enum):
     HOLDEM = "holdem"
     DICE = "dice"
     FOOL_LIAR = "fool_liar"
+    SWORD_UPGRADE = "sword_upgrade"
 
 
-GameInstance = HoldemGame | DiceGame | FoolLiarGame
+GameInstance = HoldemGame | DiceGame | FoolLiarGame | SwordUpgradeGame
 
 
 class BotService(Protocol):
@@ -66,6 +70,10 @@ def _dice_service(game, parser, stats_store, room_id):
 
 def _fool_liar_service(game, parser, stats_store, room_id):
     return FoolLiarBotService(game, parser, stats_store)
+
+
+def _sword_upgrade_service(game, parser, stats_store, room_id):
+    return SwordUpgradeBotService(game, parser, stats_store)
 
 
 def _holdem_active_actor(game: HoldemGame) -> str | None:
@@ -129,6 +137,17 @@ GAME_PLUGINS = {
         } and game.deadline_at is not None,
         lambda game, default: max(0.01, game.remaining_seconds()),
     ),
+    GameType.SWORD_UPGRADE: GamePlugin(
+        GameType.SWORD_UPGRADE,
+        "검키우기",
+        SwordUpgradeGame,
+        _sword_upgrade_service,
+        build_sword_upgrade_card_actions,
+        lambda game: game.can_change_game(),
+        lambda game: None,
+        lambda game: False,
+        lambda game, default: default,
+    ),
 }
 
 GAME_LABELS = {game_type: plugin.label for game_type, plugin in GAME_PLUGINS.items()}
@@ -158,6 +177,10 @@ def game_type_from_selection(value: str) -> GameType | None:
         "바보 라이어게임": GameType.FOOL_LIAR,
         "foolliar": GameType.FOOL_LIAR,
         "fool_liar": GameType.FOOL_LIAR,
+        "검키우기": GameType.SWORD_UPGRADE,
+        "검 키우기": GameType.SWORD_UPGRADE,
+        "sword": GameType.SWORD_UPGRADE,
+        "sword_upgrade": GameType.SWORD_UPGRADE,
     }
     return aliases.get(normalized)
 

@@ -6,6 +6,7 @@ from app.domain.game import GamePhase, HoldemGame
 from app.games.dice.domain.game import DiceGame
 from app.games.fool_liar.domain.game import FoolLiarGame, FoolLiarPhase
 from app.games.mahjong_efficiency.battle_service import BATTLE_HELP
+from app.games.sword_upgrade.domain.game import SwordUpgradeGame
 from app.platforms.base import PlatformGateway
 
 
@@ -77,7 +78,7 @@ class GameCommandCoordinator:
             is_start = self.command_parser.parse(command_text).type.value == "START"
         except ValueError:
             return None
-        if not is_start or isinstance(game, DiceGame):
+        if not is_start or isinstance(game, (DiceGame, SwordUpgradeGame)):
             return None
 
         if isinstance(game, FoolLiarGame):

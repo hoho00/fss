@@ -17,6 +17,8 @@ from app.games.dice.domain.game import DiceGame
 from app.games.dice.services.dice_bot_service import DiceBotService
 from app.games.fool_liar.domain.game import FoolLiarGame
 from app.games.fool_liar.services.fool_liar_bot_service import FoolLiarBotService
+from app.games.sword_upgrade.domain.game import SwordUpgradeGame
+from app.games.sword_upgrade.services.sword_bot_service import SwordUpgradeBotService
 from app.games.mahjong_efficiency.service import MahjongEfficiencyService
 from app.games.mahjong_efficiency.battle_service import MahjongBattleService
 from app.services.game_command_coordinator import (
@@ -172,7 +174,7 @@ async def protect_debug_api(request: Request, call_next):
 app.include_router(webex_debug_router)
 
 
-def get_game_for_room(room_id: str | None = None) -> HoldemGame | DiceGame | FoolLiarGame:
+def get_game_for_room(room_id: str | None = None) -> HoldemGame | DiceGame | FoolLiarGame | SwordUpgradeGame:
     if room_id is None or room_id == DEBUG_ROOM_ID:
         return game
 
@@ -191,6 +193,8 @@ def get_game_type_for_room(room_id: str | None = None) -> GameType:
             return GameType.DICE
         if isinstance(game, FoolLiarGame):
             return GameType.FOOL_LIAR
+        if isinstance(game, SwordUpgradeGame):
+            return GameType.SWORD_UPGRADE
         return GameType.HOLDEM
 
     return room_manager.game_type(room_id)
@@ -227,7 +231,7 @@ def _command_coordinator() -> GameCommandCoordinator:
     )
 
 
-def get_bot_service(room_id: str | None = None) -> HoldemBotService | DiceBotService | FoolLiarBotService:
+def get_bot_service(room_id: str | None = None) -> HoldemBotService | DiceBotService | FoolLiarBotService | SwordUpgradeBotService:
     return _command_coordinator().service_for_room(room_id or DEBUG_ROOM_ID)
 
 
@@ -250,11 +254,11 @@ def _is_latest_card_action(room_id: str, card_token: str | None) -> bool:
     return latest_card_token == card_token
 
 
-def _active_turn_player_id(current_game: HoldemGame | DiceGame | FoolLiarGame) -> str | None:
+def _active_turn_player_id(current_game: HoldemGame | DiceGame | FoolLiarGame | SwordUpgradeGame) -> str | None:
     return _timer_service().active_actor(current_game)
 
 
-def _should_schedule_turn_timer(current_game: HoldemGame | DiceGame | FoolLiarGame) -> bool:
+def _should_schedule_turn_timer(current_game: HoldemGame | DiceGame | FoolLiarGame | SwordUpgradeGame) -> bool:
     return _timer_service().should_schedule(current_game)
 
 
@@ -263,6 +267,8 @@ def _game_type_for_instance(current_game) -> GameType:
         return GameType.DICE
     if isinstance(current_game, FoolLiarGame):
         return GameType.FOOL_LIAR
+    if isinstance(current_game, SwordUpgradeGame):
+        return GameType.SWORD_UPGRADE
     return GameType.HOLDEM
 
 
@@ -394,7 +400,7 @@ def _is_game_selection_command(command_text: str) -> bool:
     return _admin_service().is_game_selection(command_text)
 
 
-def _can_select_game(current_game: HoldemGame | DiceGame | FoolLiarGame) -> bool:
+def _can_select_game(current_game: HoldemGame | DiceGame | FoolLiarGame | SwordUpgradeGame) -> bool:
     return plugin_for_type(_game_type_for_instance(current_game)).can_change(current_game)
 
 
@@ -506,7 +512,7 @@ def _handle_webex_attachment_action_created_locked(payload: dict) -> dict:
     return _webex_event_handler().handle_attachment_locked(payload)
 
 def _build_available_card_actions(
-    current_game: HoldemGame | DiceGame | FoolLiarGame,
+    current_game: HoldemGame | DiceGame | FoolLiarGame | SwordUpgradeGame,
 ) -> list[tuple[str, str]]:
     actions = plugin_for_type(_game_type_for_instance(current_game)).build_actions(current_game)
     existing = {command for _, command in actions}
@@ -529,7 +535,7 @@ def _response_sender() -> WebexResponseSender:
 
 def _send_private_cards_to_all(
     webex_client: PlatformGateway,
-    current_game: HoldemGame | DiceGame | FoolLiarGame,
+    current_game: HoldemGame | DiceGame | FoolLiarGame | SwordUpgradeGame,
 ) -> list[str]:
     return _response_sender().send_private_cards(webex_client, current_game)
 
@@ -546,7 +552,7 @@ def _rollback_holdem_start(room_id: str, snapshot: dict) -> HoldemGame:
 
 def _preflight_start_direct_messages(
     webex_client: PlatformGateway,
-    current_game: HoldemGame | DiceGame | FoolLiarGame,
+    current_game: HoldemGame | DiceGame | FoolLiarGame | SwordUpgradeGame,
     command_text: str,
 ) -> dict | None:
     return _command_coordinator().preflight_start(
@@ -557,7 +563,7 @@ def _preflight_start_direct_messages(
 def _dispatch_direct_messages(
     webex_client: PlatformGateway,
     result: dict,
-    current_game: HoldemGame | DiceGame | FoolLiarGame | None = None,
+    current_game: HoldemGame | DiceGame | FoolLiarGame | SwordUpgradeGame | None = None,
 ) -> None:
     _command_coordinator().dispatch_direct_messages(
         webex_client, result, current_game

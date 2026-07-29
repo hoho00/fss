@@ -149,6 +149,7 @@ class HoldemBotService:
 - @FSS 게임선택 홀덤
 - @FSS 게임선택 주사위
 - @FSS 게임선택 바보라이어게임
+- @FSS 게임선택 검키우기
 - 게임 대기 또는 종료 상태에서만 게임을 바꿀 수 있습니다.
 
 기본:
@@ -183,6 +184,7 @@ class HoldemBotService:
 - @FSS 랭킹리셋 (관리자 전용)
 - @FSS 게임선택 주사위
 - @FSS 게임선택 바보라이어게임
+- @FSS 게임선택 검키우기
 """.strip()
 
     def _clean_display_name(self, display_name: str | None) -> str:

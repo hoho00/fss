@@ -10,6 +10,7 @@ def build_fool_liar_card_actions(game: FoolLiarGame) -> list[tuple[str, str]]:
             ("도움말", "도움말"), ("종료", "종료"),
             ("♠️ 홀덤", "게임선택 홀덤"),
             ("🎲 주사위", "게임선택 주사위"),
+            ("⚔️ 검키우기", "게임선택 검키우기"),
         ]
     if game.phase in {FoolLiarPhase.VOTING, FoolLiarPhase.REVOTING}:
         candidates = game.revote_candidates if game.phase == FoolLiarPhase.REVOTING else [p.person_id for p in game.players]

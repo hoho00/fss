@@ -1,6 +1,7 @@
 from app.domain.game import GamePhase, HoldemGame
 from app.games.dice.domain.game import DiceGame, DiceGamePhase
 from app.games.fool_liar.domain.game import FoolLiarGame, FoolLiarPhase
+from app.games.sword_upgrade.domain.game import SwordUpgradeGame
 
 
 def is_turn_action(command_text: str) -> bool:
@@ -31,6 +32,8 @@ def can_accept_stale_action(game, command_text: str) -> bool:
         return command_text in {"참가", "참가취소", "랭킹", "전적"} and game.phase == FoolLiarPhase.WAITING
     if isinstance(game, DiceGame):
         return command_text in {"상태", "참가"} and game.phase == DiceGamePhase.WAITING
+    if isinstance(game, SwordUpgradeGame):
+        return command_text in {"상태", "내검", "도움말", "랭킹"}
     if not isinstance(game, HoldemGame):
         return False
     if command_text in {"상태", "내카드", "도움말"}:

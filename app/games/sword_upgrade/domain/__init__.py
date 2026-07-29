@@ -1,0 +1,1 @@
+"""Sword upgrade domain models."""

@@ -21,4 +21,5 @@ def build_dice_card_actions(game: DiceGame) -> list[tuple[str, str]]:
         ("리셋", "리셋"),
         ("♠️ 홀덤", "게임선택 홀덤"),
         ("🃏 바보 라이어", "게임선택 바보라이어게임"),
+        ("⚔️ 검키우기", "게임선택 검키우기"),
     ]
