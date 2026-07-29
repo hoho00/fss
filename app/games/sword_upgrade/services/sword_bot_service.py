@@ -33,7 +33,11 @@ class SwordUpgradeBotService:
             silent_public = False
 
             if normalized in {"검생성", "검 생성", "검만들기", "검 만들기"}:
-                message = self.game.create_sword(person_id, display_name)
+                self.game.ensure_sword(person_id, display_name)
+                message = (
+                    f"{display_name}님은 이미 검을 가지고 있습니다. "
+                    "별도 생성 없이 채팅으로 `@FSS 강화`를 입력하세요."
+                )
             elif normalized == "강화":
                 message = self.game.enhance(person_id, display_name)
             elif normalized in {"내검", "내 검"}:
@@ -85,11 +89,12 @@ class SwordUpgradeBotService:
         return (
             "검키우기 도움말\n\n"
             "게임 선택: @FSS 게임선택 검키우기\n"
-            "진행: 검생성 → 강화\n\n"
+            "진행: 채팅으로 `@FSS 강화`\n\n"
             "규칙\n"
-            "- 각자 검을 생성한 뒤 강화할 수 있습니다.\n"
+            "- 방에 참여하면 자동으로 0강 검을 가집니다. (검생성 불필요)\n"
+            "- 강화는 채팅으로만 가능합니다. (버튼 불가)\n"
             "- 성공률: 1강 90%, 2강 80%, 3강 70% ... (10%씩 감소)\n"
-            "- 실패 시 1강 하락, 낮은 확률(5%)로 검이 파괴됩니다.\n\n"
-            "명령어: 검생성 / 강화 / 내검 / 상태 / 랭킹 / 리셋\n"
+            "- 실패 시 1강 하락, 낮은 확률(5%)로 파괴되어 0강이 됩니다.\n\n"
+            "명령어: 강화 / 내검 / 상태 / 랭킹 / 리셋\n"
             "다른 게임: @FSS 게임선택 홀덤 / 주사위 / 바보라이어게임"
         )

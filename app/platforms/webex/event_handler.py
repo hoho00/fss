@@ -2,8 +2,17 @@ import logging
 from collections.abc import Callable
 
 from app.games.mahjong_efficiency.battle_card_builder import build_game_status_selector_card
+from app.games.sword_upgrade.domain.game import SwordUpgradeGame
 
 logger = logging.getLogger(__name__)
+
+_SWORD_CHAT_ONLY_COMMANDS = {
+    "강화",
+    "검생성",
+    "검 생성",
+    "검만들기",
+    "검 만들기",
+}
 
 
 class WebexEventHandler:
@@ -234,6 +243,15 @@ class WebexEventHandler:
         display_name = client.display_name_from_person(person, person_id)
         if self.is_game_selection(command_text):
             result = self.handle_game_selection(room_id, command_text)
+        elif (
+            isinstance(self.get_game(room_id), SwordUpgradeGame)
+            and command_text.strip() in _SWORD_CHAT_ONLY_COMMANDS
+        ):
+            result = {
+                "ok": False,
+                "message": "검 강화는 채팅으로만 가능합니다. `@FSS 강화`를 입력해주세요.",
+                "status": self.get_game(room_id).status(),
+            }
         else:
             result = self.command_coordinator.execute(
                 gateway=client,

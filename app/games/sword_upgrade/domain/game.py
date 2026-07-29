@@ -13,7 +13,11 @@ class SwordOwner:
 
 
 class SwordUpgradeGame:
-    """방 안 참가자들이 각자 검을 만들고 강화하는 게임."""
+    """방 안 참가자들이 각자 검을 강화하는 게임.
+
+    검생성 없이, 방에 참여해 명령을 쓰는 순간 0강 검을 자동으로 가집니다.
+    파괴 시에도 검은 유지되며 0강으로 돌아갑니다.
+    """
 
     def __init__(self):
         self.swords: dict[str, SwordOwner] = {}
@@ -25,26 +29,22 @@ class SwordUpgradeGame:
             return 1.0
         return max(0.0, (100 - target_level * 10) / 100.0)
 
-    def create_sword(self, person_id: str, display_name: str) -> str:
-        existing = self.swords.get(person_id)
-        if existing is not None:
-            raise ValueError(
-                f"이미 검이 있습니다. 현재 {existing.level}강입니다. 강화로 업그레이드하세요."
-            )
-
-        self.swords[person_id] = SwordOwner(
-            person_id=person_id,
-            display_name=display_name,
-            level=0,
-        )
-        return f"{display_name}님이 검을 생성했습니다. (0강)\n강화 버튼으로 강화를 시도하세요."
-
-    def enhance(self, person_id: str, display_name: str) -> str:
+    def ensure_sword(self, person_id: str, display_name: str) -> SwordOwner:
         sword = self.swords.get(person_id)
         if sword is None:
-            raise ValueError("먼저 검을 생성해주세요.")
+            sword = SwordOwner(
+                person_id=person_id,
+                display_name=display_name,
+                level=0,
+            )
+            self.swords[person_id] = sword
+            return sword
 
         sword.display_name = display_name
+        return sword
+
+    def enhance(self, person_id: str, display_name: str) -> str:
+        sword = self.ensure_sword(person_id, display_name)
         target_level = sword.level + 1
         rate = self.success_rate(target_level)
         rate_percent = int(rate * 100)
@@ -62,10 +62,10 @@ class SwordUpgradeGame:
 
         destroyed = random.random() < DESTROY_CHANCE
         if destroyed:
-            del self.swords[person_id]
+            sword.level = 0
             return (
-                f"강화 실패... 검이 파괴되었습니다.\n"
-                f"{display_name}님의 검이 사라졌습니다. 검생성으로 다시 만들 수 있습니다.\n"
+                f"강화 실패... 검이 파괴되어 0강으로 돌아갔습니다.\n"
+                f"{display_name}님의 검: +0강\n"
                 f"(성공률 {rate_percent}%, 파괴 확률 {int(DESTROY_CHANCE * 100)}%)"
             )
 
@@ -77,10 +77,7 @@ class SwordUpgradeGame:
         )
 
     def my_sword(self, person_id: str, display_name: str) -> str:
-        sword = self.swords.get(person_id)
-        if sword is None:
-            return f"{display_name}님은 아직 검이 없습니다. 검생성으로 만들어보세요."
-
+        sword = self.ensure_sword(person_id, display_name)
         next_rate = int(self.success_rate(sword.level + 1) * 100)
         return (
             f"{display_name}님의 검: +{sword.level}강\n"
@@ -89,7 +86,7 @@ class SwordUpgradeGame:
 
     def ranking(self) -> str:
         if not self.swords:
-            return "아직 생성된 검이 없습니다."
+            return "아직 강화에 참여한 사람이 없습니다. 채팅으로 `@FSS 강화`를 입력해보세요."
 
         ordered = sorted(
             self.swords.values(),
@@ -106,7 +103,10 @@ class SwordUpgradeGame:
 
     def status(self) -> str:
         if not self.swords:
-            return "검키우기 대기 중. 검생성 후 강화해보세요."
+            return (
+                "검키우기 진행 중.\n"
+                "채팅으로 `@FSS 강화`를 입력하면 0강 검으로 참여합니다."
+            )
 
         ordered = sorted(
             self.swords.values(),

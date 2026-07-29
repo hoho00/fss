@@ -116,7 +116,7 @@ class AdminCommandService:
         self.save_state()
         hint = "참가 후 시작해주세요."
         if game_type == GameType.SWORD_UPGRADE:
-            hint = "검생성 후 강화해보세요."
+            hint = "채팅으로 `@FSS 강화`를 입력하세요. (버튼 강화 불가)"
         return {
             "ok": True,
             "message": f"{GAME_LABELS[game_type]} 게임을 선택했습니다. {hint}",

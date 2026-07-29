@@ -39,7 +39,7 @@ def test_success_rate_decreases_by_ten_percent():
     assert SwordUpgradeGame.success_rate(10) == 0.0
 
 
-def test_create_and_enhance_sword_success(monkeypatch):
+def test_enhance_auto_grants_sword_and_succeeds(monkeypatch):
     reset_platform(monkeypatch)
     monkeypatch.setattr(
         "app.games.sword_upgrade.domain.game.random.random",
@@ -49,17 +49,17 @@ def test_create_and_enhance_sword_success(monkeypatch):
     selection = command("sword-room", "user-1", "상현", "@FSS 게임선택 검키우기").json()
     assert selection["ok"] is True
     assert "검키우기 게임을 선택했습니다" in selection["message"]
+    assert "채팅" in selection["message"]
     assert main_module.get_game_type_for_room("sword-room") == GameType.SWORD_UPGRADE
-
-    created = command("sword-room", "user-1", "상현", "검생성").json()
-    assert created["ok"] is True
-    assert "검을 생성했습니다" in created["message"]
-    assert "0강" in created["message"]
 
     enhanced = command("sword-room", "user-1", "상현", "강화").json()
     assert enhanced["ok"] is True
     assert "강화 성공" in enhanced["message"]
     assert "+1강" in enhanced["message"]
+
+    game = main_module.get_game_for_room("sword-room")
+    assert isinstance(game, SwordUpgradeGame)
+    assert game.swords["user-1"].level == 1
 
 
 def test_enhance_failure_drops_one_level(monkeypatch):
@@ -71,7 +71,6 @@ def test_enhance_failure_drops_one_level(monkeypatch):
     )
 
     command("sword-room", "user-1", "상현", "게임선택 검키우기")
-    command("sword-room", "user-1", "상현", "검생성")
     command("sword-room", "user-1", "상현", "강화")
 
     failed = command("sword-room", "user-1", "상현", "강화").json()
@@ -84,7 +83,7 @@ def test_enhance_failure_drops_one_level(monkeypatch):
     assert game.swords["user-1"].level == 0
 
 
-def test_enhance_failure_can_destroy_sword(monkeypatch):
+def test_enhance_failure_destroy_resets_to_zero(monkeypatch):
     reset_platform(monkeypatch)
     # First enhance succeeds, second fails and destroy roll hits.
     rolls = iter([0.0, 0.99, DESTROY_CHANCE / 2])
@@ -94,15 +93,16 @@ def test_enhance_failure_can_destroy_sword(monkeypatch):
     )
 
     command("sword-room", "user-1", "상현", "게임선택 검키우기")
-    command("sword-room", "user-1", "상현", "검생성")
     command("sword-room", "user-1", "상현", "강화")
 
     destroyed = command("sword-room", "user-1", "상현", "강화").json()
     assert destroyed["ok"] is True
     assert "파괴" in destroyed["message"]
+    assert "0강" in destroyed["message"]
 
     game = main_module.get_game_for_room("sword-room")
-    assert "user-1" not in game.swords
+    assert "user-1" in game.swords
+    assert game.swords["user-1"].level == 0
 
 
 def test_multiple_players_have_independent_swords(monkeypatch):
@@ -113,40 +113,42 @@ def test_multiple_players_have_independent_swords(monkeypatch):
     )
 
     command("sword-room", "user-1", "상현", "게임선택 검키우기")
-    command("sword-room", "user-1", "상현", "검생성")
-    command("sword-room", "user-2", "철수", "검생성")
     command("sword-room", "user-1", "상현", "강화")
     command("sword-room", "user-1", "상현", "강화")
+    command("sword-room", "user-2", "철수", "강화")
 
     status = command("sword-room", "user-1", "상현", "상태").json()
     assert status["ok"] is True
     assert "상현: +2강" in status["message"]
-    assert "철수: +0강" in status["message"]
+    assert "철수: +1강" in status["message"]
 
 
-def test_cannot_create_duplicate_sword(monkeypatch):
-    reset_platform(monkeypatch)
-    command("sword-room", "user-1", "상현", "게임선택 검키우기")
-    command("sword-room", "user-1", "상현", "검생성")
-
-    duplicate = command("sword-room", "user-1", "상현", "검생성").json()
-    assert duplicate["ok"] is False
-    assert "이미 검이 있습니다" in duplicate["message"]
-
-
-def test_cannot_enhance_without_sword(monkeypatch):
+def test_create_sword_command_is_unnecessary(monkeypatch):
     reset_platform(monkeypatch)
     command("sword-room", "user-1", "상현", "게임선택 검키우기")
 
-    result = command("sword-room", "user-1", "상현", "강화").json()
-    assert result["ok"] is False
-    assert "먼저 검을 생성" in result["message"]
+    result = command("sword-room", "user-1", "상현", "검생성").json()
+    assert result["ok"] is True
+    assert "이미 검을 가지고" in result["message"]
+    assert "강화" in result["message"]
+
+
+def test_my_sword_auto_grants_zero_level(monkeypatch):
+    reset_platform(monkeypatch)
+    command("sword-room", "user-1", "상현", "게임선택 검키우기")
+
+    result = command("sword-room", "user-1", "상현", "내검").json()
+    assert result["ok"] is True
+    assert "+0강" in result["message"]
+
+    game = main_module.get_game_for_room("sword-room")
+    assert game.swords["user-1"].level == 0
 
 
 def test_sword_game_state_persists(tmp_path):
     store = JsonGameStore(str(tmp_path / "games.json"))
     game = SwordUpgradeGame()
-    game.create_sword("user-1", "상현")
+    game.ensure_sword("user-1", "상현")
     game.swords["user-1"].level = 3
 
     store.save_all(
@@ -162,7 +164,7 @@ def test_sword_game_state_persists(tmp_path):
     assert loaded_games["sword-room"].swords["user-1"].level == 3
 
 
-def test_sword_help_explains_rules(monkeypatch):
+def test_sword_help_explains_chat_only_enhance(monkeypatch):
     reset_platform(monkeypatch)
     command("sword-room", "user-1", "상현", "게임선택 검키우기")
 
@@ -170,15 +172,26 @@ def test_sword_help_explains_rules(monkeypatch):
     assert result["ok"] is True
     assert "게임선택 검키우기" in result["message"]
     assert "1강 90%" in result["message"]
+    assert "채팅" in result["message"]
     assert "파괴" in result["message"]
 
 
-def test_sword_card_actions_include_create_and_enhance(monkeypatch):
+def test_sword_card_actions_exclude_create_and_enhance(monkeypatch):
     reset_platform(monkeypatch)
     command("sword-room", "user-1", "상현", "게임선택 검키우기")
     game = main_module.get_game_for_room("sword-room")
     actions = main_module._build_available_card_actions(game)
     commands = [command for _, command in actions]
 
-    assert "검생성" in commands
-    assert "강화" in commands
+    assert "검생성" not in commands
+    assert "강화" not in commands
+    assert "내검" in commands
+    assert "상태" in commands
+
+
+def test_main_selector_mentions_sword_chat_enhance():
+    from app.games.mahjong_efficiency.battle_card_builder import build_game_status_selector_card
+
+    card = build_game_status_selector_card()
+    body_texts = [item.get("text", "") for item in card["body"]]
+    assert any("검키우기" in text and "채팅" in text for text in body_texts)
